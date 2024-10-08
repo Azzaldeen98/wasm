@@ -2,6 +2,7 @@ package com.example.wasmapplication.core.constant
 
 
     object Constants {
+
         const val WASM_BASE_URL = "https://api-inference.huggingface.co/models/wasmdashai/"
 
         //=========================================================

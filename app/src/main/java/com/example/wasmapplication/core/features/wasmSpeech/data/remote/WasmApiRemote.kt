@@ -4,12 +4,14 @@ import android.util.Log
 import com.example.wasmapplication.R
 import com.example.wasmapplication.core.constant.Constants
 import com.example.wasmapplication.core.error.AiSafetyException
+import com.example.wasmapplication.core.error.ServerException
 import kotlinx.coroutines.delay
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.ResponseBody
 import retrofit2.Call
 import retrofit2.HttpException
 import retrofit2.Response
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import javax.inject.Inject
@@ -37,7 +39,7 @@ class WasmApiRemoteImpl @Inject constructor(
                 throw HttpException(response)
             }
         }
-    override suspend  fun queryTextToSpeech(input: String): ByteArray?  {
+    suspend  fun queryTextToSpeech2(input: String): ByteArray?  {
 
             val apiUrl="${Constants.WASM_BASE_URL}vits-ar-sa-huba-v2" //vits-ar-sa-A"
             val authorization = "Bearer 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";
@@ -69,7 +71,7 @@ class WasmApiRemoteImpl @Inject constructor(
                         val response: Response<String> =Response.error(responseCode,responseBody)
                         throw HttpException(response)
                         Log.e("WasmApiAudio", "Failed with HTTP response code: $responseCode")
-                        delay(500)
+                        delay(1000)
                     }
                 }
                 catch (e: HttpException) {
@@ -92,13 +94,11 @@ class WasmApiRemoteImpl @Inject constructor(
             return null
 
     }
+    override suspend  fun queryTextToSpeech(input: String): ByteArray?  {
 
-     suspend  fun queryTextToSpeech2(input: String): ByteArray?  {
-
-        return try {
-            val apiUrl="${Constants.WASM_BASE_URL}vits-ar-sa-huba-v2" //vits-ar-sa-A"
+            val apiUrl = "${Constants.WASM_BASE_URL}vits-ar-sa-huba-v2" //vits-ar-sa-A"
             val authorization = "Bearer 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";
-//            Log.d("apiUrl",apiUrl)
+
             val url = URL(apiUrl)
             val conn = url.openConnection() as HttpURLConnection
             conn.requestMethod = "POST"
@@ -113,16 +113,10 @@ class WasmApiRemoteImpl @Inject constructor(
 
             val responseCode = conn.responseCode
             if (responseCode == HttpURLConnection.HTTP_OK) {
-                conn.inputStream.use { it.readBytes() }
+                return conn.inputStream.use { it.readBytes() }
             } else {
-                Log.e("WasmApiAudio", "Failed with HTTP response code: $responseCode")
-                null
+                throw ServerException(responseCode, "ServerException:${conn.responseMessage}")
             }
 
-        } catch (e: Exception) {
-            e.printStackTrace()
-            Log.e("WasmApiAudio",e.message.toString())
-            null
-        }
     }
-    }
+}

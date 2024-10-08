@@ -3,7 +3,7 @@ package com.example.wasmapplication.core.features.wasmSpeech.domain.use_case
 
 import android.annotation.SuppressLint
 import com.example.wasmapplication.core.Resource
-import com.example.wasmapplication.core.constant.FailureMsg
+import com.example.wasmapplication.core.error.FailureMsg
 import com.example.wasmapplication.core.features.wasmSpeech.domain.repository.WasmTextToSpeechRepository
 import jakarta.inject.Inject
 import kotlinx.coroutines.flow.Flow

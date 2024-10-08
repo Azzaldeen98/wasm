@@ -1,7 +1,7 @@
 package com.example.wasmapplication.core.features.wasmSpeech.domain.use_case
 import android.annotation.SuppressLint
 import com.example.wasmapplication.core.Resource
-import com.example.wasmapplication.core.constant.FailureMsg
+import com.example.wasmapplication.core.error.FailureMsg
 import com.example.wasmapplication.core.features.wasmSpeech.domain.repository.GeminiAiRepository
 import com.example.wasmapplication.core.features.wasmSpeech.domain.repository.WasmTextToSpeechRepository
 import jakarta.inject.Inject
@@ -10,10 +10,8 @@ import kotlinx.coroutines.flow.flow
 import retrofit2.HttpException
 import java.io.IOException
 
-class GeminiTextWasmQueryUseCase  @Inject constructor(
-    private val repositoryGemini: GeminiAiRepository,
-    private val repositoryWasmTextSpeech: WasmTextToSpeechRepository
-) {
+class GeminiTextWasmQueryUseCase  @Inject constructor(private val repositoryGemini: GeminiAiRepository,
+    private val repositoryWasmTextSpeech: WasmTextToSpeechRepository) {
 
     @SuppressLint("SuspiciousIndentation")
     operator fun invoke(inputText:String): Flow<Resource<Any>> = flow {
@@ -24,8 +22,7 @@ class GeminiTextWasmQueryUseCase  @Inject constructor(
 //                emit(Resource.Success(result))
                 try {
 
-                    val bytes: ByteArray? =
-                        this@GeminiTextWasmQueryUseCase.repositoryWasmTextSpeech.queryText(result)
+                    val bytes: ByteArray? = repositoryWasmTextSpeech.queryText(result)
                     if (bytes != null) {
                         emit(Resource.Success(bytes))
                     }
@@ -50,3 +47,4 @@ class GeminiTextWasmQueryUseCase  @Inject constructor(
         }
     }
 }
+

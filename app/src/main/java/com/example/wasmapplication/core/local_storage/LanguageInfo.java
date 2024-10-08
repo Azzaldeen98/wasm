@@ -25,12 +25,16 @@ public class LanguageInfo {
             return index;
         }
 
-    public static  void  setStorageSelcetedLanguage(Context context, String langCode, int langIndex){
+    public static  String  getCurrentAppLanguage(Context context){
+       Object lang = ExternalStorage.getValue(context, Constants.LANGUAGE);
+       return (lang!=null)?lang.toString():"";
+    }
+    public static  void  setStorageSelectedLanguage(Context context, String langCode, int langIndex){
         ExternalStorage.storage(context, Constants.LANGUAGE,langCode);
         ExternalStorage.storage(context,Constants.LANGUAGE_INDEX,langIndex);
     }
 
-    public static LanguageInfo getStorageSelcetedLanguage(Context context){
+    public static LanguageInfo getStorageSelectedLanguage(Context context){
 
         if(ExternalStorage.existing(context,Constants.LANGUAGE) && ExternalStorage.existing(context,Constants.LANGUAGE_INDEX)) {
 
@@ -43,7 +47,7 @@ public class LanguageInfo {
         return null;
     }
 
-    public static void removeStorageSelcetedLanguage(Context context){
+    public static void removeStorageSelectedLanguage(Context context){
 
         ExternalStorage.remove(context,Constants.LANGUAGE);
         ExternalStorage.remove(context,Constants.LANGUAGE_INDEX);

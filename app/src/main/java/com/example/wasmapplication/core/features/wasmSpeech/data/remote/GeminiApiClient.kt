@@ -3,6 +3,11 @@ package com.example.wasmapplication.core.features.wasmSpeech.data.remote
 import android.annotation.SuppressLint
 
 import com.example.wasmapplication.core.constant.Constants
+import com.example.wasmapplication.core.error.AiSafetyException
+import com.example.wasmapplication.core.error.ConnectErrorException
+import com.example.wasmapplication.core.error.CustomException
+import com.example.wasmapplication.core.error.NullException
+import com.example.wasmapplication.core.error.ServerException
 import com.example.wasmapplication.core.interfaces.IListenerStream
 import com.google.ai.client.generativeai.Chat
 import com.google.ai.client.generativeai.GenerativeModel
@@ -16,17 +21,20 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onCompletion
+import retrofit2.HttpException
+import java.io.IOException
+import java.net.ConnectException
 
 class GeminiApiClient(private  val apiKey:String)  {
     private val model: GenerativeModel
     private val chat : Chat
     private  val docs=" يجب ان تكون اجابتك دقيقة ومختصرة وان لا تتعدا سطرين  ويجب ان تكون  الاجابة باللغة العربية"
-    val chatHistory = listOf(
+    var chatHistory = listOf(
         content("user") {
             text("السلام عليكم اريد منك ان ترد على اسئلتي  دائما باللهجة السعودية النجدية ")
         },
         content("model") {
-            text("هلا ومرحبا،  اسأل يا حبيبي  و عس")
+            text("هلا ومرحبا،  اسأل يا حبيبي  و عساك طيب")
         },
         content("user") {
             text("\"كيف حالك اخبارك\\")
@@ -37,17 +45,24 @@ class GeminiApiClient(private  val apiKey:String)  {
         content("user") {
             text("اريد ايضا ان تكون اجابتك مختصره على سبيل المثال اكثر اجابة سطرين\\")
         },
+        content("model") {
+            text("طيب يا حبيبي،  انا  جاهز ، اسأل  وراح أختصر لك  قدر  المستطاع . \n")
+        },
+
         content("user") {
             text(" يجب ان تنتهي  كل جملة في النص  بنقطة  \\")
         },
         content("model") {
-            text("طيب يا حبيبي،  انا  جاهز ، اسأل  وراح أختصر لك  قدر  المستطاع . \n")
+            text("طيب سأحاول، استخدام علامات الترقيم لتميز الجمل\n")
         },
         content("user") {
             text("كيف  علومك")
         },
         content("model") {
             text("زين الحمد لله، وانت عساك طيب؟ \n")
+        },
+        content("user") {
+            text("الرجاء إرسال الردود كجمل مفيدة وموجزة. \n")
         },
     )
     init {
@@ -68,7 +83,7 @@ class GeminiApiClient(private  val apiKey:String)  {
         chat= model.startChat(chatHistory)
     }
 
-//    @SuppressLint("SuspiciousIndentation")
+
     suspend fun sendMessage(text:String): String? {
         val response = chat?.sendMessage("$text . $docs")
         return  response?.text;
@@ -94,14 +109,13 @@ class GeminiApiClient(private  val apiKey:String)  {
                             throw IllegalArgumentException(cause)
                         }
                     }.collect { response ->
-                        val content =
-                            response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.asTextOrNull()
+                        val content = response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.asTextOrNull()
                         content?.trim()?.let {
                             if (it.isNotEmpty()) {
                                 isCallBackReader = false
                                 var cleanedText = it.replace("*", "").replace(Regex("\\s+"), " ")
                                 responseBuilder.append(cleanedText).append(" ")
-                                if (isEndOfSentence(responseBuilder.toString()) || responseBuilder.length >= 50) {
+                                if (isEndOfSentence(responseBuilder.toString()) || responseBuilder.length >= 20) {
                                     val lines = spiltSentence(responseBuilder.toString())?.filter { it.isNotEmpty() }
                                     lines?.let {
                                         var line = ""
@@ -123,11 +137,105 @@ class GeminiApiClient(private  val apiKey:String)  {
 //                        delay(200)
                     }
             }
+        } catch (e: HttpException) {
+         throw  ServerException(e.code(),e.message())
+        } catch (e: KotlinNullPointerException) {
+             throw  NullException(e.message)
+        }catch (e: ConnectException) {
+             throw  ConnectErrorException(e.message)
         } catch (e: Exception) {
-            throw e
+            if (e.message?.contains("SAFETY") == true) {
+                throw AiSafetyException(e.message)
+            }
+            throw CustomException(e.message)
         }
     }
 
+//    suspend fun sendMessageStream(text: String): Flow<String> = flow {
+//        var isCallBackReader = false
+//        val responseBuilder = StringBuilder()
+//        try {
+//            chat?.let {
+//                it.sendMessageStream(text)
+//                    .flowOn(Dispatchers.IO)
+//                    .onCompletion { cause ->
+//                        if (cause == null) {
+//                            if (!isCallBackReader && responseBuilder.toString().trim().isNotEmpty()) {
+//                                emit(responseBuilder.toString().trim())
+//                                responseBuilder.clear()
+//                            }
+//                            emit(Constants.END_SYMBOL)
+//                            println("responseFlow: Completed successfully")
+//                        } else {
+//                            println("responseFlow: Completed with error: ${cause.message}")
+//                            throw IllegalArgumentException(cause)
+//                        }
+//                    }
+//                    .collect { response ->
+//                        val content = response.candidates.firstOrNull()?.content?.parts?.firstOrNull()?.asTextOrNull()
+//                        content?.trim()?.let {
+//                            if (it.isNotEmpty()) {
+//
+//                            processResponseContent(it, responseBuilder)?.let {response->
+//                                emit(response)
+//                              }
+//                            }
+//                        }
+//                    }
+//            }
+//        } catch (e: HttpException) {
+//            throw ServerException(e.code(), e.message())
+//        } catch (e: KotlinNullPointerException) {
+//            throw NullException(e.message)
+//        } catch (e: ConnectException) {
+//            throw ConnectErrorException(e.message)
+//        } catch (e: Exception) {
+//            if (e.message?.contains("SAFETY") == true) {
+//                throw AiSafetyException(e.message)
+//            }
+//            throw CustomException(e.message)
+//        }
+//    }
+
+    private fun processResponseContent(content: String, responseBuilder: StringBuilder):String? {
+        var cleanedText = content.replace("*", "").replace(Regex("\\s+"), " ")
+        responseBuilder.append(cleanedText).append(" ")
+
+        if (isEndOfSentence(responseBuilder.toString()) || responseBuilder.length >= 20) {
+            val lines = spiltSentence(responseBuilder.toString())
+                ?.filter { it.isNotEmpty() }
+                    lines?.let {
+                        var line = ""
+                        for (sentence in it) {
+                            line += "$sentence "
+                            if (line.length >= 10) {
+                              return line;
+                                responseBuilder.clear()
+                                line = ""
+                            }
+                        }
+                    }
+        }
+        return  null;
+    }
+    private fun processText(content: String, responseBuilder: StringBuilder): String? {
+        val words = content.split(" ")
+        var completeSentence: String? = null
+
+        for (word in words) {
+            responseBuilder.append("$word ")
+            if (word.endsWith(".") || responseBuilder.split(" ").size >= 10) {
+                completeSentence = responseBuilder.toString().trim()
+                responseBuilder.clear()
+            }
+        }
+
+        return completeSentence
+    }
+    suspend fun sendMessageFlowStream(text: String): Flow<GenerateContentResponse>? {
+//        var contentText=content("user") { text("$text. الرجاء الاهتمام بعلامات الترقم عند توليد النص ووضع الفواصل التي تشير الى ناهية الجملة ") }
+        return   chat?.sendMessageStream(text);//"$text الرجاء الاهتمام بعلامات الترقم عند توليد النص ووضع الفواصل التي تشير الى ناهية الجملة .");
+    }
     suspend fun sendMessageStream(text:String, callBack: IListenerStream<String>) {
         var isCallBackReader = false;
         val responseBuilder = StringBuilder()
@@ -191,6 +299,6 @@ class GeminiApiClient(private  val apiKey:String)  {
                 || text.endsWith(",")   || text.endsWith("؟")
     }
     private fun spiltSentence(text: String): List<String> {
-        return text.split(Regex("[،!؟?,.]"))
+        return text.split(Regex("[،؟,.]"))
     }
 }

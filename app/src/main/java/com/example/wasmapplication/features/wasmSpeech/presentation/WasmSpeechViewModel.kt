@@ -1,26 +1,16 @@
 package com.example.wasmapplication.features.wasmSpeech.presentation
 
 
-import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.media3.exoplayer.ExoPlayer
-import com.example.wasm.core.android_api.media.ExoPlayerMedia
-import com.example.wasmapplication.core.Resource
-import com.example.wasmapplication.core.constant.Constants
-import com.example.wasmapplication.core.constant.FailureMsg
-import com.example.wasmapplication.core.helpers.Helper
-import com.example.wasmapplication.core.interfaces.ICustomPlayerListener
 import com.example.wasmapplication.features.UiState
 import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.GeminiTextWasmQueryUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 @HiltViewModel

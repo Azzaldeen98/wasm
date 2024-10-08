@@ -25,6 +25,7 @@ import com.example.wasmapplication.core.constant.STORAGE_RECORD_SERVICE_STATE
 import com.example.wasmapplication.core.helpers.ManageService
 import com.example.wasmapplication.core.local_storage.ExternalStorage
 import com.example.wasmapplication.features.components.BasicButton
+import com.example.wasmapplication.services.RecordVoiceLifeCycleService
 import com.example.wasmapplication.services.RecordVoiceService
 import dagger.hilt.android.qualifiers.ApplicationContext
 
@@ -82,11 +83,11 @@ fun RobotSpeechScreen(
 //    wasmSpeechViewModel: WasmSpeechViewModel  = viewModel()
 
 ) {
-
+    var serviceClass: Class<*> = RecordVoiceLifeCycleService::class.java;
     var result by rememberSaveable { mutableStateOf("placeholderResult") }
     val uiState by wasmSpeechViewModel.uiState.collectAsState();
     var text by remember { mutableStateOf(
-        if(ManageService.checkForegroundServiceIsRunning(context,RecordVoiceService::class.java))"Stop Service" else "Start Service") }
+        if(ManageService.checkForegroundServiceIsRunning(context, serviceClass))"Stop Service" else "Start Service") }
 //    val state = viewModel.state.value
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -99,14 +100,12 @@ fun RobotSpeechScreen(
             BasicButton(
 
                 onClick = {
-                          if(!ManageService.checkForegroundServiceIsRunning(context,RecordVoiceService::class.java)){
-                               ManageService.startService(context,RecordVoiceService::class.java)
-                               ExternalStorage.storage(context, STORAGE_RECORD_SERVICE_STATE,true)
+                          if(!ManageService.checkForegroundServiceIsRunning(context,serviceClass)){
+                               ManageService.startService(context,serviceClass)
                                text="Stop Service"
                           }else{
                               text="Start Service"
-                              ManageService.stopService(context,RecordVoiceService::class.java)
-                              ExternalStorage.storage(context, STORAGE_RECORD_SERVICE_STATE,false)
+                              ManageService.stopService(context,serviceClass)
 
                             }
                       },

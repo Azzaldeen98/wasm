@@ -71,19 +71,21 @@ interface ISpeechRecognizerService{
     ) {
         setOptions(lang,recognizer,false,workingInTheContinuously)
         try {
-
+            speechRecognizerIsListening=false;
             if(errorListener!=null)
                 this.errorListener=errorListener
 
             speechRecognizer = SpeechRecognizer.createSpeechRecognizer(context);
+            speechRecognizer?.setRecognitionListener(onRecognitionListener)
             speechRecognizerIntent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-
+//            speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE,true);
             // Define the language model used for voice recognition
             speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_PROMPT, "")
             // Specify the preferred language for voice recognition
             speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang);
-            speechRecognizer?.setRecognitionListener(onRecognitionListener)
+
+
 
         } catch (e: Exception) {
             Log.e("SpeechRecognizerServiceError",e.message.toString())
@@ -98,8 +100,8 @@ interface ISpeechRecognizerService{
 //        speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 5000);
         // The amount of time that it should take after we stop hearing speech to consider the input possibly complete.
 //        speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 5000);
-        //speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
-        //speechRecognizerIntent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+        speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+        speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
     }
 
     fun  resetInitialize(recognizer: Boolean=true,
@@ -179,10 +181,10 @@ interface ISpeechRecognizerService{
         }
         override fun onResults(bundle: Bundle) {
             try {
-
+                speechRecognizerIsListening=false;
                 val data = bundle.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                 if (data == null || data.size < 1 || data[0] =="")
-                    speechRecognizerListenAgain();
+                    reStartListening();
                 else {
 //                    Toast.makeText(this@SpeechRecognizerService.context,"onResults1", Toast.LENGTH_SHORT).show()
                     textSpeachResult = data[0].toString()
@@ -196,7 +198,7 @@ interface ISpeechRecognizerService{
 
             }catch (ex:Exception){
                 Toast.makeText(this@SpeechRecognizerService.context, "$textSpeachResult", Toast.LENGTH_SHORT).show()
-                speechRecognizerListenAgain();
+                reStartListening();
             }
 
         }
@@ -224,7 +226,7 @@ interface ISpeechRecognizerService{
             startSpeechRecognizerListening();
         }
     }
-    fun startSpeechRecognizerListening() {
+    private fun startSpeechRecognizerListening() {
 
         if (speechRecognizer != null && speechRecognizerIntent != null){
             val lang= LanguageInfo("ar",0) // LanguageInfo.getStorageSelcetedLanguage(context)
@@ -237,7 +239,8 @@ interface ISpeechRecognizerService{
     }
 
     fun reStartListening() {
-        if (speechRecognizer != null && speechRecognizerIntent != null){
+
+        if (speechRecognizer != null && speechRecognizerIntent != null && speechRecognizerIsListening==false ){
             speechRecognizer ?.startListening(speechRecognizerIntent !!)
             speechRecognizerIsListening=true
         }
@@ -255,9 +258,6 @@ interface ISpeechRecognizerService{
      fun destroy(){
         try {
 
-            if(speechRecognizerIsListening==true)
-                speechRecognizerIsListening=false
-
             if (speechRecognizer != null) {
                 speechRecognizer?.stopListening();
                 speechRecognizer?.cancel();
@@ -268,6 +268,7 @@ interface ISpeechRecognizerService{
         } catch (e: Exception) {
             Log.d("Error ! ", e.message.toString())
         }finally {
+            speechRecognizerIsListening=false
             speechRecognizerIntent=null;
         }
     }

@@ -13,12 +13,16 @@ import androidx.media3.common.Player.Listener
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.ByteArrayDataSource
 import androidx.media3.datasource.DataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
+import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.extractor.DefaultExtractorsFactory
 import com.example.wasmapplication.core.interfaces.ICustomPlayerListener
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
 
 
 class ExoPlayerMedia (private val context: Context ,private val isStream: Boolean =true){
@@ -27,6 +31,13 @@ class ExoPlayerMedia (private val context: Context ,private val isStream: Boolea
     var player: ExoPlayer? =null;
     private var listener : Listener?=null;
     private lateinit var mediaItem:MediaItem;
+
+    private var noiseSuppressor: NoiseSuppressor? = null
+    private var bassBoost: BassBoost? = null
+    private var equalizer: Equalizer? = null
+    private var loudnessEnhancer: LoudnessEnhancer? = null
+    private var acousticEchoCanceler:AcousticEchoCanceler? = null
+
     init {
         initial(isStream)
     }
@@ -49,13 +60,14 @@ class ExoPlayerMedia (private val context: Context ,private val isStream: Boolea
                 .build()
 
             if(context!=null){
+                val defaultRenderersFactory = DefaultRenderersFactory(context).setEnableAudioTrackPlaybackParams(true)
 
                 if(isStream){
-                    player =  ExoPlayer.Builder(context)
+                    player =  ExoPlayer.Builder(context,defaultRenderersFactory)
                         .setMediaSourceFactory(DefaultMediaSourceFactory(context).setLiveTargetOffsetMs(5000)).build()
                     mediaItem = getStreamMediaItem()
                 }else{
-                    player = ExoPlayer.Builder(context).build()
+                    player = ExoPlayer.Builder(context,defaultRenderersFactory).build()
                 }
                 player?.volume = 1.0f  // 1.0 هو الحد الأقصى لمستوى الصوت
                 player?.setAudioAttributes(audioAttributes,true)
@@ -68,7 +80,11 @@ class ExoPlayerMedia (private val context: Context ,private val isStream: Boolea
             e.printStackTrace()
         }
     }
-
+    fun getRemainingDuration():Long{
+        val totalDuration = player?.duration ?: 0
+        val currentPosition = player?.currentPosition ?: 0
+        return (totalDuration - currentPosition)
+    }
     private fun getStreamMediaItem(uri: Uri?=null):MediaItem{
         return  MediaItem.Builder()
             .setUri(uri?: Uri.EMPTY)
@@ -91,19 +107,102 @@ class ExoPlayerMedia (private val context: Context ,private val isStream: Boolea
                 it.setMediaSource(mediaSource)
             }
 
-            if (listener == null) {
-                listener = getNewPlayerListener()
-                if (listener != null) {
-                    player?.addListener(listener!!)
-                }
-            }
+//            if (listener == null) {
+//                listener = getNewPlayerListener()
+//                if (listener != null) {
+//                    player?.addListener(listener!!)
+//                }
+//            }
 
-            startPlay()
+            player?.prepare()
+            player?.play()
 
         }catch (e:Exception){
             e.printStackTrace()
             Log.e("playMediaStream",e.message.toString())
         }
+    }
+    private suspend fun waitUntilAudioEnds() {
+        if (listener != null) {
+            player?.let { it.removeListener(listener!!) }
+            listener=null;
+        }
+        suspendCancellableCoroutine<Unit> { continuation ->
+            if(listener==null){
+                listener=object : Player.Listener {
+                    @SuppressLint("UnsafeOptInUsageError")
+                    override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
+
+                        if (playbackState == Player.STATE_READY && player?.audioSessionId != null) {
+                            val audioSessionId = player?.audioSessionId!!
+                                initializeAudioEffects(audioSessionId)
+                            } else {
+                                Log.w("AudioEffects", "LoudnessEnhancer is not supported on this device")
+                            }
+
+                        }
+                    override fun onPlaybackStateChanged(playbackState: Int) {
+                        // تحقق مما إذا كانت حالة التشغيل تعني الانتهاء
+                        if (playbackState == Player.STATE_ENDED) {
+                            continuation.resume(Unit)
+                        }
+                    }
+                    override fun onPlayerError(error: PlaybackException) {
+                        // إذا حدث خطأ أثناء التشغيل
+                        continuation.resume(Unit) // يمكنك أيضًا إدارة الأخطاء بشكل أفضل هنا
+                    }
+                }
+            }
+            player?.addListener(listener!!)
+        }
+    }
+    private fun initializeAudioEffects(audioSessionId: Int) {
+        if (noiseSuppressor == null && bassBoost == null
+            && equalizer == null && loudnessEnhancer == null && acousticEchoCanceler==null) {
+            try {
+                // إنشاء التأثيرات الصوتية مرة واحدة
+                if (NoiseSuppressor.isAvailable()) {
+                    noiseSuppressor = NoiseSuppressor.create(audioSessionId)
+                    noiseSuppressor?.enabled = true
+                    Log.d("AudioEffects", "NoiseSuppressor created and enabled")
+                }
+                if (AcousticEchoCanceler.isAvailable()) {
+                    acousticEchoCanceler = AcousticEchoCanceler.create(audioSessionId)
+                    if (acousticEchoCanceler != null) {
+                        acousticEchoCanceler?.enabled = true
+                    }
+                }
+
+                bassBoost = BassBoost(0, audioSessionId)
+                if(bassBoost!=null){
+                    bassBoost?.enabled = true
+                    bassBoost?.setStrength(1000.toShort())
+                    Log.d("AudioEffects", "BassBoost created and enabled")
+                }
+
+                equalizer = Equalizer(0, audioSessionId)
+                if(equalizer!=null){
+                    equalizer?.enabled = true
+                    equalizer?.setBandLevel(0, 1000)  // تحسين الجهير
+                    Log.d("AudioEffects", "Equalizer created and enabled")
+
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                    loudnessEnhancer = LoudnessEnhancer(audioSessionId)
+                    loudnessEnhancer?.setTargetGain(2000)
+                    loudnessEnhancer?.enabled = true
+                    Log.d("AudioEffects", "LoudnessEnhancer created and enabled")
+                }
+            } catch (e: Exception) {
+                Log.e("AudioEffects", "Error setting up audio effects: ${e.message}")
+            }
+        } else {
+            Log.d("AudioEffects", "Audio effects are already set up")
+        }
+    }
+    suspend fun playerMediaStreamAndWait(data: ByteArray) {
+        playMediaByteStream(data);
+        waitUntilAudioEnds();
     }
     @UnstableApi
     fun setAttributes(audioAttributes:AudioAttributes?=null){
@@ -139,7 +238,7 @@ class ExoPlayerMedia (private val context: Context ,private val isStream: Boolea
     }
     private  fun startPlay(){
         player?.prepare()
-        player?.playWhenReady = true
+        player?.play()
     }
     private fun addPlayerListener(){
         if(player==null)
@@ -165,13 +264,11 @@ class ExoPlayerMedia (private val context: Context ,private val isStream: Boolea
                 if (playbackState == Player.STATE_READY && player?.audioSessionId != null) {
                     val audioSessionId = player?.audioSessionId!!
                     try {
-                        if (NoiseSuppressor.isAvailable()) {
-                            val noiseSuppressor = NoiseSuppressor.create(audioSessionId)
+                        if (noiseSuppressor==null && NoiseSuppressor.isAvailable()) {
+                             noiseSuppressor = NoiseSuppressor.create(audioSessionId)
                             if (noiseSuppressor != null) {
-                                noiseSuppressor.enabled = true
+                                noiseSuppressor?.enabled = true
                                 Log.d("AudioEffects", "NoiseSuppressor enabled")
-                            } else {
-                                Log.e("AudioEffects", "Failed to create NoiseSuppressor")
                             }
                         } else {
                             Log.e("AudioEffects", "NoiseSuppressor is not available on this device")
@@ -181,11 +278,12 @@ class ExoPlayerMedia (private val context: Context ,private val isStream: Boolea
                     }
 
                     try {
+
                         // إلغاء الصدى
                         if (AcousticEchoCanceler.isAvailable()) {
-                            val echoCanceler = AcousticEchoCanceler.create(audioSessionId)
-                            if (echoCanceler != null) {
-                                echoCanceler.enabled = true
+                            acousticEchoCanceler = AcousticEchoCanceler.create(audioSessionId)
+                            if (acousticEchoCanceler != null) {
+                                acousticEchoCanceler?.enabled = true
                                 Log.d("AudioEffects", "AcousticEchoCanceler enabled")
                             } else {
                                 Log.e("AudioEffects", "Failed to create AcousticEchoCanceler")
@@ -379,11 +477,16 @@ class ExoPlayerMedia (private val context: Context ,private val isStream: Boolea
     }
     fun release() {
         isRelease=true
-        if(player!=null) {
-            if(listener!=null)
-                player?.let { it.removeListener(listener!!) }
-            player!!.release()
-            player=null
+        try {
+            releaseAudioEffects();
+        }finally {
+            if(player!=null) {
+                stop()
+                if(listener!=null)
+                    player?.let { it.removeListener(listener!!) }
+                player!!.release()
+                player=null
+            }
         }
     }
     fun isPlayer():Boolean {
@@ -395,15 +498,44 @@ class ExoPlayerMedia (private val context: Context ,private val isStream: Boolea
             if( player?.isPlaying==true){
                 player?.stop()
             }
-            if(listener!=null)
-                player?.let { it.removeListener(listener!!) }
-
-            player?.release()
         } catch (e: Exception) {
             e.printStackTrace()
         }
 
     }
+    private fun releaseAudioEffects() {
+        // تأكد من وجود تأثيرات الصوت مفعلّة
+        if (noiseSuppressor != null) {
+            noiseSuppressor?.enabled = false
+            noiseSuppressor?.release() // تحرير الذاكرة
+            noiseSuppressor = null
+        }
+
+        if (acousticEchoCanceler != null) {
+            acousticEchoCanceler?.enabled = false
+            acousticEchoCanceler?.release() // تحرير الذاكرة
+            acousticEchoCanceler = null
+        }
+
+        if (bassBoost != null) {
+            bassBoost?.enabled = false
+            bassBoost?.release() // تحرير الذاكرة
+            bassBoost = null
+        }
+
+        if (equalizer != null) {
+            equalizer?.enabled = false
+            equalizer?.release() // تحرير الذاكرة
+            equalizer = null
+        }
+
+        if (loudnessEnhancer != null) {
+            loudnessEnhancer?.enabled = false
+            loudnessEnhancer?.release() // تحرير الذاكرة
+            loudnessEnhancer = null
+        }
+    }
+
 
 }
 

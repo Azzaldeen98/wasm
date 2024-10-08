@@ -7,13 +7,14 @@ import android.content.Intent
 import android.os.Build
 import com.example.wasmapplication.core.constant.STORAGE_RECORD_SERVICE_STATE
 import com.example.wasmapplication.core.local_storage.ExternalStorage
+import com.example.wasmapplication.services.RecordVoiceLifeCycleService
 import com.example.wasmapplication.services.RecordVoiceService
 
 class BootBroadcastReceiver : BroadcastReceiver() {
     @SuppressLint("NewApi")
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != null && intent.action == Intent.ACTION_BOOT_COMPLETED) {
-            val serviceIntent = Intent(context,RecordVoiceService::class.java)
+            val serviceIntent = Intent(context, RecordVoiceLifeCycleService::class.java)
             try {
                 val state = ExternalStorage.getBooleanValue(context, STORAGE_RECORD_SERVICE_STATE)
                 if (state) {

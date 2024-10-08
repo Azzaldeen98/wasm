@@ -14,6 +14,9 @@ import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
+import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.wasm.core.android_api.media.ExoPlayerMedia
 import com.example.wasmapplication.MainActivity
@@ -28,6 +31,9 @@ import com.example.wasmapplication.core.constant.Constants
 import com.example.wasmapplication.core.enums.NotificationsId
 import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.GeminiTextStreamUseCase
 import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.GeminiTextUseCase
+import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.GeminiTextWasmQueryFlowStreamUseCase
+import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.GeminiTextWasmQueryStreamUseCase
+import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.GeminiTextWasmQueryStreamUseCaseV2
 import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.GeminiTextWasmQueryUseCase
 import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.WasmQueryUseCase
 import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.WasmSecondQueryUseCase
@@ -39,14 +45,19 @@ import jakarta.inject.Inject
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
+import kotlin.coroutines.resume
 
 @AndroidEntryPoint
 class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceEventListener {
@@ -55,17 +66,28 @@ class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceE
     @Inject lateinit var wasmQueryUseCase: WasmQueryUseCase
     @Inject lateinit var wasmSecondQueryUseCase: WasmSecondQueryUseCase
     @Inject lateinit var geminiTextStreamUseCase: GeminiTextStreamUseCase
+    @Inject lateinit var geminiTextWasmQueryStreamUseCase: GeminiTextWasmQueryStreamUseCase
+    @Inject lateinit var geminiTextWasmQueryStreamUseCaseV2: GeminiTextWasmQueryStreamUseCaseV2
+    @Inject lateinit var geminiTextWasmQueryFlowStreamUseCase: GeminiTextWasmQueryFlowStreamUseCase
 
     //    @Inject lateinit var localNotification: LocalNotification
     //    @Inject lateinit var geminiTextUseCase: GeminiTextUseCase
-
     //    private lateinit var networkChangeReceiver: NetworkChangeReceiver
 
     private lateinit var  speechRecognizerService: SpeechRecognizerService;
     private lateinit var exoPlayerMedia : ExoPlayerMedia;
     private lateinit var scope:CoroutineScope;
+    private  val semaphore:Semaphore=Semaphore(1);
 
-    val exceptionHandler = CoroutineExceptionHandler { _, throwable ->
+    val exceptionHandler = CoroutineExceptionHandler  { _, throwable ->  suspend {
+        withContext(Dispatchers.Main) {
+            Toast.makeText(
+                this@RecordVoiceService,
+                "Error::${throwable.message}",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
         println ( "Coroutine Exception: $throwable" )
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -84,7 +106,7 @@ class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceE
                 workingInTheContinuously = true,
                 lang = "ar"
             );
-            scope= CoroutineScope(Dispatchers.IO)
+            scope= CoroutineScope(Dispatchers.IO+exceptionHandler)
             exoPlayerMedia=ExoPlayerMedia(this)
             speechRecognizerService?.speechRecognizerListenAgain()
             Toast.makeText(this, "Background is working ", Toast.LENGTH_SHORT).show()
@@ -100,14 +122,226 @@ class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceE
 
         if(result?.isNullOrBlank()==false){
 //            sendRequestToGeneratorBasic(result)
-            sendRequestToGeminiTextGeneratorStream(result)
+//            sendRequestToGeminiTextGeneratorStream(result)
+            sendRequestToGeminiTextWasmSpeechStream(result)
+//            sendRequestToGeminiTextWasmSpeechStreamV2(result)
+//            sendRequestToGeminiTextWasmSpeechFlowStream(result)
         }else{
             scope.launch(Dispatchers.Main) {
-                speechRecognizerService.speechRecognizerListenAgain()
+                speechRecognizerService.reStartListening()
             }
         }
     }
-//    @SuppressLint("SuspiciousIndentation")
+    private fun sendRequestToGeminiTextWasmSpeechStream(result: String) {
+
+        if (TestConnection.isOnline(this, false)) {
+            try {
+
+                scope.launch{
+                    val response = geminiTextWasmQueryStreamUseCase(result)
+                    response?.collect { it ->
+                            when (it) {
+                                is Resource.Loading -> {}
+                                is Resource.Success -> {
+                                        if (it.data is ByteArray && it.data.isNotEmpty() ) {
+                                            playMedia(it.data)
+                                        }
+                                }
+                                is Resource.Error -> {
+                                    Log.e("SpeechError", it.message?:"")
+//                                    withContext(Dispatchers.Main) {
+//                                        Toast.makeText(
+//                                            this@RecordVoiceService,
+//                                         "Error::${ it.message}",
+//                                            Toast.LENGTH_SHORT
+//                                        ).show()
+//                                    }
+                                    restartRecognizerAgain()
+                                }
+                                is Resource.Complete -> {
+//                                    withContext(Dispatchers.Main) {
+//                                        Toast.makeText(
+//                                            this@RecordVoiceService,
+//                                            "is Complete",
+//                                            Toast.LENGTH_SHORT
+//                                        ).show()
+//                                    }
+                                    restartRecognizerAgain()
+                                }
+                                is Resource.FinalError -> {
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(
+                                            this@RecordVoiceService,
+                                            "Final Error:${it.message}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    restartRecognizerAgain()
+                                }
+                            }
+                    }
+                }
+            } catch (e:Exception) {
+                scope?.launch(Dispatchers.Main) {
+                    restartRecognizerAgain()
+//                    speechRecognizerService.reStartListening()
+                }
+            }
+        } else {
+           // notifyNoInternetConnection()
+        }
+    }
+    private fun sendRequestToGeminiTextWasmSpeechFlowStream(result: String) {
+
+        if (TestConnection.isOnline(this, false)) {
+            try {
+                scope.launch(Dispatchers.IO+exceptionHandler) {
+                    val response = geminiTextWasmQueryFlowStreamUseCase(result)
+//                    response?.flowOn(Dispatchers.IO)
+                      response?.collect { it ->
+                        when (it) {
+                            is Resource.Loading -> {}
+                            is Resource.Success -> {
+
+                                if (it.data is ByteArray) {
+                                    playMedia(it.data)
+                                }
+                                else {
+                                    restartRecognizerAgain()
+                                }
+
+                            }
+                            is Resource.Error -> {
+                                Log.e("SpeechError", it.message?:"")
+//                                    withContext(Dispatchers.Main) {
+//                                        Toast.makeText(
+//                                            this@RecordVoiceService,
+//                                         "Error::${ it.message}",
+//                                            Toast.LENGTH_SHORT
+//                                        ).show()
+//                                    }
+                                restartRecognizerAgain()
+                            }
+                            is Resource.Complete -> {
+//                                    withContext(Dispatchers.Main) {
+//                                        Toast.makeText(
+//                                            this@RecordVoiceService,
+//                                            "is Complete",
+//                                            Toast.LENGTH_SHORT
+//                                        ).show()
+//                                    }
+                                restartRecognizerAgain()
+                            }
+                            is Resource.FinalError -> {
+                                withContext(Dispatchers.Main) {
+                                    Toast.makeText(
+                                        this@RecordVoiceService,
+                                        "Final Error:${it.message}",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                restartRecognizerAgain()
+                            }
+                        }
+                    }
+                }
+            } catch (e:Exception) {
+                scope?.launch(Dispatchers.Main) {
+                    restartRecognizerAgain()
+//                    speechRecognizerService.reStartListening()
+                }
+            }
+        } else {
+            // notifyNoInternetConnection()
+        }
+    }
+    private fun sendRequestToGeminiTextWasmSpeechStreamV2(result: String) {
+
+        if (TestConnection.isOnline(this, false)) {
+            try {
+                scope.launch(Dispatchers.IO+exceptionHandler) {
+                    val response = geminiTextWasmQueryStreamUseCaseV2(result)
+                    response?.collect { it ->
+                            when (it) {
+                                is Resource.Loading -> {}
+                                is Resource.Success -> {
+
+                                        if (it.data is ByteArray) {
+                                            playMedia(it.data)
+                                        }
+                                        else {
+                                            restartRecognizerAgainV2()
+                                        }
+
+                                }
+                                is Resource.Error -> {
+                                    Log.e("SpeechError", it.message?:"")
+//                                    withContext(Dispatchers.Main) {
+//                                        Toast.makeText(
+//                                            this@RecordVoiceService,
+//                                         "Error::${ it.message}",
+//                                            Toast.LENGTH_SHORT
+//                                        ).show()
+//                                    }
+                                    restartRecognizerAgainV2()
+                                }
+                                is Resource.Complete -> {
+//                                    withContext(Dispatchers.Main) {
+//                                        Toast.makeText(
+//                                            this@RecordVoiceService,
+//                                            "is Complete",
+//                                            Toast.LENGTH_SHORT
+//                                        ).show()
+//                                    }
+                                    restartRecognizerAgainV2()
+                                }
+                                is Resource.FinalError -> {
+                                    withContext(Dispatchers.Main) {
+                                        Toast.makeText(
+                                            this@RecordVoiceService,
+                                            "Final Error:${it.message}",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                    restartRecognizerAgainV2()
+                                }
+                            }
+                    }
+                }
+            } catch (e:Exception) {
+                scope?.launch {
+                    restartRecognizerAgainV2()
+                }
+            }
+        } else {
+           // notifyNoInternetConnection()
+        }
+    }
+    private suspend fun restartRecognizerAgain(){
+
+            withContext(Dispatchers.Main) {
+                try {
+                        var remaining= exoPlayerMedia?.getRemainingDuration()?:0
+                         if(remaining>0)
+                            delay(remaining)
+                }finally {
+                        speechRecognizerService.reStartListening()
+                }
+            }
+    }
+    private suspend fun restartRecognizerAgainV2(){
+
+        withContext(Dispatchers.Main) {
+            try {
+                while (semaphore.withPermit {exoPlayerMedia?.isPlayer()} == true)
+                    delay(1000)
+            }finally {
+                semaphore.withPermit {
+                    speechRecognizerService.reStartListening()
+                }
+            }
+        }
+    }
     private  fun sendRequestToGeminiTextGeneratorStream(result: String) {
 
         if (TestConnection.isOnline(this, false)) {
@@ -137,7 +371,6 @@ class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceE
                                 }
 
                             }
-
                             is Resource.Error -> {
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(
@@ -148,7 +381,7 @@ class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceE
                                 }
                                 startSpeechRecognition()
                             }
-
+                            else ->  startSpeechRecognition()
                         }
                     }
                 }
@@ -167,40 +400,34 @@ class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceE
             try {
                 val data = wasmSecondQueryUseCase(result)
                 if (data != null) {
-                    withContext(Dispatchers.Main) {
-                        try {
-                            exoPlayerMedia?.playMediaByteStream(data)
-                            if (exoPlayerMedia?.isPlayer() == false){
-//                                Toast.makeText(this@RecordVoiceService, "exoPlayer is not Player", Toast.LENGTH_SHORT).show()
-                                delay(500)
-                            }
-                            while (exoPlayerMedia?.isPlayer() == true)
-                                delay(1000)
-//                           exoPlayerMedia?.setPlayerListener(object : ICustomPlayerListener<ExoPlayer> {
-    //                                override fun onCompletionListener(
-    //                                    mp: ExoPlayer?,
-    //                                    isComplete: Boolean
-    //                                ) {
-    ////                                    super.onCompletionListener(mp, isComplete)
-    ////                                        if (isComplete) {
-    ////                                            speechRecognizerService.speechRecognizerListenAgain()
-    ////                                        }
-    //                                }
-    //
-    //                                override fun onErrorListener(
-    //                                    mp: ExoPlayer?,
-    //                                    error: java.lang.Exception
-    //                                ) {
-    ////                                    super.onErrorListener(mp, error)
-    ////                                        speechRecognizerService.speechRecognizerListenAgain()
-    //                                }
-    //                            }, lastSequence)
-                        }catch (e:Exception){
-                            e.printStackTrace()
-                        }
-                    }
+                    playMedia(data)
+//                    withContext(Dispatchers.Main) {
+////                        try {
+//                           playMedia(data)
+//    //                      exoPlayerMedia?.setPlayerListener(object : ICustomPlayerListener<ExoPlayer> {
+//    //                                override fun onCompletionListener(
+//    //                                    mp: ExoPlayer?,
+//    //                                    isComplete: Boolean
+//    //                                ) {
+//    ////                                    super.onCompletionListener(mp, isComplete)
+//    ////                                        if (isComplete) {
+//    ////                                            speechRecognizerService.speechRecognizerListenAgain()
+//    ////                                        }
+//    //                                }
+//    //
+//    //                                override fun onErrorListener(
+//    //                                    mp: ExoPlayer?,
+//    //                                    error: java.lang.Exception
+//    //                                ) {
+//    ////                                    super.onErrorListener(mp, error)
+//    ////                                        speechRecognizerService.speechRecognizerListenAgain()
+//    //                                }
+//    //                            }, lastSequence)
+////                        }catch (e:Exception){
+////                            e.printStackTrace()
+////                        }
+//                    }
                 }
-
             }catch (e:HttpException){
                 withContext(Dispatchers.Main) {
                     Toast.makeText(
@@ -216,7 +443,29 @@ class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceE
             notifyNoInternetConnection()
         }
     }
-//    @SuppressLint("SuspiciousIndentation")
+    private suspend fun playMedia(data:ByteArray){
+        var dueration:Long=500;
+        withContext(Dispatchers.Main) {
+            try {
+
+                 exoPlayerMedia?.playerMediaStreamAndWait(data)
+//                    exoPlayerMedia?.playMediaByteStream(data)
+
+//                    if (exoPlayerMedia?.isPlayer() == false) {
+//                        delay(500)
+//                    }
+//                 dueration=exoPlayerMedia?.getRemainingDuration()?:0;//exoPlayerMedia?.player?.duration?:500;
+//                 delay(dueration)
+//                    while (exoPlayerMedia?.isPlayer() == true)
+//                        delay(500)
+
+            }catch (e:Exception){
+                e.printStackTrace()
+            }
+        }
+
+    }
+
     private  fun sendRequestToGeneratorBasic(result: String) {
 
         if (TestConnection.isOnline(this, false)) {
@@ -259,6 +508,7 @@ class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceE
                                     }
                                     startSpeechRecognition()
                                 }
+                                else ->  startSpeechRecognition()
                             }
                         }
                     }
@@ -294,7 +544,6 @@ class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceE
 //             }
 //         }
     }
-//    @SuppressLint("SuspiciousIndentation")
     private suspend fun convertTextToSpeech(text:String, lastSequence:Boolean=true){
 //        scope.launch(Dispatchers.IO) {
         try {
@@ -351,7 +600,6 @@ class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceE
                                     }
                                 }
                             }
-
                             is Resource.Error -> {
                                 withContext(Dispatchers.Main) {
                                     Toast.makeText(
@@ -363,6 +611,7 @@ class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceE
                                 startSpeechRecognition()
 
                             }
+                            else ->  startSpeechRecognition()
                         }
                     }
             }
@@ -448,7 +697,7 @@ class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceE
             scope?.cancel()
         } finally {
             try {
-                exoPlayerMedia.stop()
+                exoPlayerMedia.release()
             }finally {
                 speechRecognizerService.destroy()
             }
