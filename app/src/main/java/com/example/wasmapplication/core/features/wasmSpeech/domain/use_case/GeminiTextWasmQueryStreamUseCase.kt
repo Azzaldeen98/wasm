@@ -12,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.cancellable
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -31,12 +32,15 @@ class GeminiTextWasmQueryStreamUseCase  @Inject constructor(
         val flow= repositoryGemini.sendMessageStream(inputText)
         flow?.catch {e->
             emit(Resource.FinalError(e.localizedMessage ?: e.message?:""))
-        }?.onCompletion{ cause ->
+            return@catch
+           }?.cancellable()//Allow Cancel Flow when cancel  Coroutine
+            ?.onCompletion{ cause ->
             if (cause == null) {
                 emit(Resource.Complete())
             } else {
                 emit(Resource.Error(cause.message!!))
             }
+
         }?.flowOn(Dispatchers.IO)
             ?.collect { response ->
                 if(response!=null && response.isNotBlank()){
@@ -45,7 +49,47 @@ class GeminiTextWasmQueryStreamUseCase  @Inject constructor(
                     }else{
                         try{
                             emit(Resource.Loading(response))
-                            //return@collect الخروج من التجميع :
+                            val bytes: ByteArray? = repositoryWasmTextSpeech.queryText(response)
+                            if (bytes != null) {
+                                emit(Resource.Success(bytes))
+                            } else {
+                                emit(Resource.Error(FailureMsg.WASM_QUERY_NULL_EN))
+                                return@collect
+                            }
+                        } catch (e:Exception){
+                            if(e is ServerException){
+                                emit(Resource.FinalError("ServerException:${e.message}-${e.code}"))
+                            }else{
+                                emit(Resource.FinalError("Exception:${e.message}"))
+                            }
+                            return@collect
+                        }
+                    }
+                }
+            }
+    }
+     fun invoke1(inputText:String): Flow<Resource<Any>> = flow {
+
+        emit(Resource.Loading())
+        val flow= repositoryGemini.sendMessageStream(inputText)
+        flow?.catch {e->
+            emit(Resource.FinalError(e.localizedMessage ?: e.message?:""))
+        }?.cancellable()//Allow Cancel Flow when cancel  Coroutine
+            ?.onCompletion{ cause ->
+                if (cause == null) {
+                    emit(Resource.Complete())
+                } else {
+                    emit(Resource.Error(cause.message!!))
+                }
+
+            }?.flowOn(Dispatchers.IO)
+            ?.collect { response ->
+                if(response!=null && response.isNotBlank()){
+                    if(response==Constants.END_SYMBOL){
+                        emit(Resource.Complete())
+                    }else{
+                        try{
+                            emit(Resource.Loading(response))
                             val bytes: ByteArray? = repositoryWasmTextSpeech.queryText(response)
                             if (bytes != null) {
                                 emit(Resource.Success(bytes))
@@ -59,7 +103,6 @@ class GeminiTextWasmQueryStreamUseCase  @Inject constructor(
                             }else{
                                 emit(Resource.FinalError("Exception:${e.message}"))
                             }
-
                         }
                     }
                 }

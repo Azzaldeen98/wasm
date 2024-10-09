@@ -3,6 +3,7 @@ package com.example.wasmapplication.core.error
 public class OfflineException(message: String) : Exception(message)
 
 public class AiSafetyException(message: String?) : Exception(message)
+public class RecognitionAvailableException(message: String?="") : Exception(message)
 public class NullException(message: String?) : Exception(message)
 public class ConnectErrorException(message: String?) : Exception(message)
 public class ServerException(public final val code:Int,message: String?) : Exception(message)

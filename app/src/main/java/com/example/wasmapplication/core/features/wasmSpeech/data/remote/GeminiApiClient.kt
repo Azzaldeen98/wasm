@@ -28,7 +28,7 @@ import java.net.ConnectException
 class GeminiApiClient(private  val apiKey:String)  {
     private val model: GenerativeModel
     private val chat : Chat
-    private  val docs=" يجب ان تكون اجابتك دقيقة ومختصرة وان لا تتعدا سطرين  ويجب ان تكون  الاجابة باللغة العربية"
+    private val docs=" يجب ان تكون اجابتك دقيقة ومختصرة وان لا تتعدا سطرين . ويجب ان تعيد القيم الرقمية على شكل نصوص كتابية  .ويجب ان  تكون  الاجابة باللغة العربية."
     var chatHistory = listOf(
         content("user") {
             text("السلام عليكم اريد منك ان ترد على اسئلتي  دائما باللهجة السعودية النجدية ")
@@ -64,6 +64,15 @@ class GeminiApiClient(private  val apiKey:String)  {
         content("user") {
             text("الرجاء إرسال الردود كجمل مفيدة وموجزة. \n")
         },
+        content("user") {
+            text("ابشر ساقوم باعادة الردود كجمل مفيدة وبشكل موجز وواضح . \n")
+        },
+        content("user") {
+            text("يجب ان تعيد اي قيم رقمية على شكل نصوص كتابية . \n")
+        },
+        content("user") {
+            text(" ساقوم بتحويل اي راقام في النص الى نصوص مكتوبة فمثلا الرقم 22 ساحوله الى شكل نصي مثل إثنان وعشرون. \n")
+        },
     )
     init {
 
@@ -94,7 +103,7 @@ class GeminiApiClient(private  val apiKey:String)  {
         try {
             chat?.let {
 
-                it.sendMessageStream(text)
+                it.sendMessageStream("$text . $docs")
                     .flowOn(Dispatchers.IO)
                     .onCompletion { cause ->
                         if (cause == null) {

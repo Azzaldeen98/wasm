@@ -9,6 +9,8 @@ import android.speech.RecognizerIntent
 import android.speech.SpeechRecognizer
 import android.util.Log
 import android.widget.Toast
+import com.example.wasmapplication.core.error.RecognitionAvailableException
+import com.example.wasmapplication.core.error.ServerException
 import com.example.wasmapplication.core.local_storage.LanguageInfo
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.HiltAndroidApp
@@ -85,7 +87,10 @@ interface ISpeechRecognizerService{
             // Specify the preferred language for voice recognition
             speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang);
 
-
+            //TODO Start
+            speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 5000);
+            speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 5000);
+            //TODO End
 
         } catch (e: Exception) {
             Log.e("SpeechRecognizerServiceError",e.message.toString())
@@ -99,9 +104,9 @@ interface ISpeechRecognizerService{
         // Specifies the minimum amount of silence required to be considered audio input
 //        speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_MINIMUM_LENGTH_MILLIS, 5000);
         // The amount of time that it should take after we stop hearing speech to consider the input possibly complete.
-//        speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 5000);
-        speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
-        speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
+
+//        speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true);
+//        speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 3);
     }
 
     fun  resetInitialize(recognizer: Boolean=true,
@@ -119,8 +124,7 @@ interface ISpeechRecognizerService{
     private  val onRecognitionListener=object : RecognitionListener {
         override fun onReadyForSpeech(bundle: Bundle) {
 
-//            Toast.makeText(this@SpeechRecognizerService.context, "onReadyForSpeech:", Toast.LENGTH_SHORT).show()
-            Log.d("onReadyForSpeech", "Ready Speech")
+         Toast.makeText(this@SpeechRecognizerService.context, "onReadyForSpeech:", Toast.LENGTH_SHORT).show()
 
         }
         override fun onBeginningOfSpeech() {
@@ -139,7 +143,7 @@ interface ISpeechRecognizerService{
         override fun onError(i: Int) {
 
             Log.e( "onError:", "$i")
-            if( errorListener!=null) errorListener?.onError(i)
+            if(errorListener!=null) errorListener?.onError(i)
             if(workingInTheContinuously)
                 speechRecognizerListenAgain()
 
@@ -183,16 +187,11 @@ interface ISpeechRecognizerService{
             try {
                 speechRecognizerIsListening=false;
                 val data = bundle.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-                if (data == null || data.size < 1 || data[0] =="")
+                if (data == null || data.size < 1 || data[0]?.trim()?.isBlank()==true)
                     reStartListening();
                 else {
-//                    Toast.makeText(this@SpeechRecognizerService.context,"onResults1", Toast.LENGTH_SHORT).show()
                     textSpeachResult = data[0].toString()
-
                     Toast.makeText(this@SpeechRecognizerService.context,"${textSpeachResult?:"null"}", Toast.LENGTH_SHORT).show()
-//                    Log.d("onResults", textSpeachResult);
-//                    Toast.makeText(this@SpeechRecognizerService.context, textSpeachResult, Toast.LENGTH_SHORT).show()
-
                     speechListenerCallback?.onSpeechRecognizerResult(textSpeachResult);
                 }
 
@@ -215,34 +214,50 @@ interface ISpeechRecognizerService{
         workingInTheContinuously=_workingInTheContinuously
     }
       fun speechRecognizerListenAgain() {
+              try{
 
-        try{
-            if(speechRecognizer!=null){
-                speechRecognizerIsListening=false
-                speechRecognizer?.cancel();
-            }
+                  if(speechRecognizer!=null){
+                      speechRecognizerIsListening=false
+                      speechRecognizer?.cancel();
+                  }else{
+                      initialization()
+                  }
 
-        } finally {
-            startSpeechRecognizerListening();
-        }
+              } finally {
+                  startSpeechRecognizerListening();
+              }
     }
     private fun startSpeechRecognizerListening() {
-
-        if (speechRecognizer != null && speechRecognizerIntent != null){
-            val lang= LanguageInfo("ar",0) // LanguageInfo.getStorageSelcetedLanguage(context)
+        ////TODO
+        if (!SpeechRecognizer.isRecognitionAvailable(context)){
+            Toast.makeText(context, "Speech recognition is not available", Toast.LENGTH_SHORT).show();
+//            throw RecognitionAvailableException();
+        }else {
+            if (speechRecognizer != null && speechRecognizerIntent != null) {
+                val lang = LanguageInfo("ar", 0) // LanguageInfo.getStorageSelcetedLanguage(context)
 //            if(lang!=null && speechRecognizerIntent?.getStringExtra(RecognizerIntent.EXTRA_LANGUAGE)?.lowercase()!=lang.code?.lowercase())
-            if(lang!=null && speechRecognizerIntent?.getStringExtra(RecognizerIntent.EXTRA_LANGUAGE)?.equals(lang?.code) == false)
-                speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang.code);
-            speechRecognizer ?.startListening(speechRecognizerIntent !!)
-            speechRecognizerIsListening=true
+                if (lang != null && speechRecognizerIntent?.getStringExtra(RecognizerIntent.EXTRA_LANGUAGE)
+                        ?.equals(lang?.code) == false
+                )
+                    speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang.code);
+                speechRecognizer?.startListening(speechRecognizerIntent!!)
+                speechRecognizerIsListening = true
+            }
         }
     }
 
     fun reStartListening() {
-
-        if (speechRecognizer != null && speechRecognizerIntent != null && speechRecognizerIsListening==false ){
-            speechRecognizer ?.startListening(speechRecognizerIntent !!)
-            speechRecognizerIsListening=true
+        ////TODO
+        if (!SpeechRecognizer.isRecognitionAvailable(context)){
+            Toast.makeText(context, "Speech recognition is not available", Toast.LENGTH_SHORT).show();
+//            throw RecognitionAvailableException();
+        }else {
+            if (speechRecognizer != null && speechRecognizerIntent != null && speechRecognizerIsListening == false) {
+                speechRecognizer?.startListening(speechRecognizerIntent!!)
+                speechRecognizerIsListening = true
+            } else {
+                speechRecognizerListenAgain()
+            }
         }
     }
     fun setOnErrorListener(listener: OnErrorListener){
