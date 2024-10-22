@@ -24,7 +24,7 @@ import androidx.navigation.NavController
 import com.example.wasmapplication.core.constant.STORAGE_RECORD_SERVICE_STATE
 import com.example.wasmapplication.core.helpers.ManageService
 import com.example.wasmapplication.core.local_storage.ExternalStorage
-import com.example.wasmapplication.features.components.BasicButton
+import com.example.wasmapplication.core.components.BasicButton
 import com.example.wasmapplication.services.RecordVoiceLifeCycleService
 import com.example.wasmapplication.services.RecordVoiceService
 import dagger.hilt.android.qualifiers.ApplicationContext

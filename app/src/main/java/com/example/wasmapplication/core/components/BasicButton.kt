@@ -1,4 +1,4 @@
-package com.example.wasmapplication.features.components
+package com.example.wasmapplication.core.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize

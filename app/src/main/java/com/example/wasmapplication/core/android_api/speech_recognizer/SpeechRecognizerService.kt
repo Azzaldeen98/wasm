@@ -88,8 +88,8 @@ interface ISpeechRecognizerService{
             speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang);
 
             //TODO Start
-            speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 5000);
-            speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 5000);
+//            speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 5000);
+//            speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 5000);
             //TODO End
 
         } catch (e: Exception) {
@@ -124,7 +124,7 @@ interface ISpeechRecognizerService{
     private  val onRecognitionListener=object : RecognitionListener {
         override fun onReadyForSpeech(bundle: Bundle) {
 
-         Toast.makeText(this@SpeechRecognizerService.context, "onReadyForSpeech:", Toast.LENGTH_SHORT).show()
+//         Toast.makeText(this@SpeechRecognizerService.context, "onReadyForSpeech:", Toast.LENGTH_SHORT).show()
 
         }
         override fun onBeginningOfSpeech() {
@@ -141,7 +141,7 @@ interface ISpeechRecognizerService{
             Log.d("EndOfSpeech", "End Speech")
         }
         override fun onError(i: Int) {
-
+//            Toast.makeText(this@SpeechRecognizerService.context, "onError:$i", Toast.LENGTH_SHORT).show()
             Log.e( "onError:", "$i")
             if(errorListener!=null) errorListener?.onError(i)
             if(workingInTheContinuously)
