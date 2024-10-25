@@ -22,9 +22,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.wasmapplication.R
 import com.example.wasmapplication.core.helpers.ManageService
 import com.example.wasmapplication.core.components.BasicButton
 import com.example.wasmapplication.services.RecordVoiceLifeCycleService
@@ -92,10 +94,16 @@ fun RobotSpeechScreen(
 ) {
     var serviceClass: Class<*> = RecordVoiceLifeCycleService::class.java;
 //    var serviceClass: Class<*> = RecordVoiceService::class.java;
-    var result by rememberSaveable { mutableStateOf("placeholderResult") }
-    val uiState by wasmSpeechViewModel.uiState.collectAsState();
-    var text by remember { mutableStateOf(
-        if(ManageService.checkForegroundServiceIsRunning(context, serviceClass))"Stop Service" else "Start Service") }
+//    var result by rememberSaveable { mutableStateOf("placeholderResult") }
+//    val uiState by wasmSpeechViewModel.uiState.collectAsState();
+    var isServiceRunning by remember { mutableStateOf(ManageService.checkForegroundServiceIsRunning(context, serviceClass)) }
+    val buttonText = if (isServiceRunning) {
+        stringResource(R.string.stop_voice_chat_service)
+    } else {
+        stringResource(R.string.start_voice_chat_service)
+    }
+//    var text by remember { mutableStateOf(
+//        if(ManageService.checkForegroundServiceIsRunning(context, serviceClass))"Stop Service" else "Start Service") }
 //    val state = viewModel.state.value
 
     var presses by remember { mutableIntStateOf(0) }
@@ -107,18 +115,15 @@ fun RobotSpeechScreen(
             verticalArrangement = Arrangement.Center,) {
             Spacer(Modifier.height(0.dp))
             BasicButton(
-
                 onClick = {
                     if(!ManageService.checkForegroundServiceIsRunning(context,serviceClass)){
                         ManageService.startService(context,serviceClass)
-                        text="Stop Service"
                     }else{
-                        text="Start Service"
                         ManageService.stopService(context,serviceClass)
-
                     }
+                    isServiceRunning=!isServiceRunning
                 },
-                text = text
+                text = buttonText
             )
 
 

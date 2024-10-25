@@ -27,9 +27,13 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
-        defaultConfig {
-            resConfigs("en", "ar")
+
+//        resourceConfigurations += ["en", "en-rGB", "fr", "ja", "b+zh+Hans+MO", "b+zh+Hant+MO"]
+//        resourceConfigurations += ["en", "ar"]
+        androidResources {
+            generateLocaleConfig = true
         }
+
 
 //        val localProperties =  Properties()
 //        val localPropertiesFile = rootProject.file("local.properties")
@@ -104,6 +108,7 @@ dependencies {
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.play.services.vision.common)
     implementation(libs.androidx.lifecycle.service)
+    implementation(libs.androidx.appcompat)
 //    implementation(libs.androidx.datastore.core.android)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

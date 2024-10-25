@@ -6,8 +6,10 @@
     <string name="home">الصفحة الرئيسية</string>
     <string name="settings">الإعدادات</string>
     <string name="robot_speech">كلام الروبوت</string>
-    <string name="night_mode">الوضع الليلي</string>
-    <string name="light_mode">الوضع الضوئي</string>
+    <string name="dark_mode">المظهرالداكن</string>
+    <string name="light_mode">المظهرالفاتح </string>
+    <string name="start_voice_chat_service">بدء خدمة المحادثة الصوتية</string>
+    <string name="stop_voice_chat_service">إغلاق خدمة المحادثة الصوتية</string>
 
     <string name="notify1_Automated_msg">ستعمل هذه الخدمة بشكل مستمر دون توقف، حتى عند إغلاق التطبيق.</string>
     <!--=========================================================================-->
@@ -22,16 +24,17 @@
     <string name="msg_no_internet">!! لا يوجد اتصال بالإنترنت</string>
     <string name="msg_no_internet_ar">لا يوجد اتصال بالإنترنت !!</string>
     <string name="retry_button">إعادة محاولة الاتصال</string>
+    <string name="change_language"> تغير اللغة </string>
 
     <!--========================[EditText Message Errors]==========================-->
     <string name="input_is_empty">لا يمكن ترك هذا الحقل فارغًا.</string>
 
     <string-array name="language_names">
-        <item>العربية</item>
-        <item>الإنجليزية</item>
-        <item>الإسبانية</item>
-        <item>الفرنسية</item>
-    </string-array>
+        <item>العربية:ar</item>
+        <item>الإنجليزية:en</item>
+<!--        <item>الإسبانية</item>-->
+<!--        <item>الفرنسية</item>-->
+        </string-array>
 
 
 

@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.wasmapplication.core.local.LanguageControls
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 
 @HiltViewModel
@@ -17,21 +18,17 @@ class SettingViewModel @Inject constructor(
     private val _isDarkTheme = mutableStateOf(false)
     private val _language = mutableStateOf("ar")
 
-
     val isDarkTheme: State<Boolean> = _isDarkTheme
     val  language: State<String> = _language
-
-        init {
-            toggleLanguage()
-        }
 
     fun toggleTheme() {
         _isDarkTheme.value = !_isDarkTheme.value
     }
-    fun toggleLanguage() {
-        viewModelScope.launch {
-            _language.value = languageControl?.getLanguage().toString()
-        }
+    fun getCurrentLanguage() {
+//        viewModelScope.launch {}
+            runBlocking {
+                _language.value = languageControl?.getLanguage().toString()?:"ar"
+            }
     }
 
     fun setDarkTheme(isDark: Boolean) {
@@ -39,10 +36,9 @@ class SettingViewModel @Inject constructor(
     }
 
     fun saveLanguage(language: String) {
-
+        _language.value = language
         viewModelScope.launch {
             languageControl?.saveLanguage(language)
-            _language.value = language
         }
     }
 

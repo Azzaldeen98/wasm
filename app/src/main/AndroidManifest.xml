@@ -32,17 +32,15 @@
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
+
         android:icon="@mipmap/ic_launcher"
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.WasmApplication"
         tools:targetApi="31" >
-        <service
-            android:name=".services.MyFirebaseMessagingService"
-            android:enabled="true"
-            android:exported="true" >
-        </service>
+
+<!--  android:localeConfig="@xml/locales_config"-->
 
         <activity
             android:name=".MainActivity"
@@ -54,7 +52,24 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
-        </activity> <!-- ////////////////// -->
+        </activity>
+        <!-- ////////////////// -->
+
+        <service
+            android:name=".services.MyFirebaseMessagingService"
+            android:enabled="true"
+            android:exported="true" >
+        </service>
+
+        <service
+            android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+            android:enabled="false"
+            android:exported="false">
+            <meta-data
+                android:name="autoStoreLocales"
+                android:value="true" />
+        </service>
+
         <service
             android:name=".services.RecordVoiceLifeCycleService"
             android:enabled="true"

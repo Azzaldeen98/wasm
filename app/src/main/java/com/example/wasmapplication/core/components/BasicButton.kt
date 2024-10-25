@@ -17,7 +17,7 @@ import com.example.wasmapplication.ui.theme.WasmApplicationTheme
 
 
 @Composable
-fun BasicButton(onClick: () -> Unit, text: String) {
+fun BasicButton(onClick:  () -> Unit, text: String) {
     Box(
         modifier = Modifier.fillMaxSize().padding(horizontal=20.dp) // يملأ كامل الشاشة
     ) {

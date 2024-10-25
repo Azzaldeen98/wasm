@@ -246,7 +246,6 @@ class GeminiApiClient(private  val apiKey:String)  {
         return completeSentence
     }
     suspend fun sendMessageFlowStream(text: String): Flow<GenerateContentResponse>? {
-//        var contentText=content("user") { text("$text. الرجاء الاهتمام بعلامات الترقم عند توليد النص ووضع الفواصل التي تشير الى ناهية الجملة ") }
         return   chat?.sendMessageStream(text);//"$text الرجاء الاهتمام بعلامات الترقم عند توليد النص ووضع الفواصل التي تشير الى ناهية الجملة .");
     }
 

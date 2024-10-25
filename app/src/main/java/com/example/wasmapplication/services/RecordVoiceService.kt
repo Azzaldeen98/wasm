@@ -1,28 +1,20 @@
 package com.example.wasmapplication.services
 
-import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
-import android.net.ConnectivityManager
 import android.os.IBinder
 import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import androidx.media3.common.PlaybackException
-import androidx.media3.common.Player
-import androidx.media3.exoplayer.ExoPlaybackException
 import androidx.media3.exoplayer.ExoPlayer
 import com.example.wasm.core.android_api.media.ExoPlayerMedia
 import com.example.wasmapplication.MainActivity
 import com.example.wasmapplication.R
-import com.example.wasmapplication.broadcasts.NetworkChangeReceiver
-import com.example.wasmapplication.core.Notifications.LocalNotification
 import com.example.wasmapplication.core.Resource
 import com.example.wasmapplication.core.TestConnection
 import com.example.wasmapplication.core.android_api.speech_recognizer.ISpeechRecognizerCallBack
@@ -30,34 +22,25 @@ import com.example.wasmapplication.core.android_api.speech_recognizer.SpeechReco
 import com.example.wasmapplication.core.constant.Constants
 import com.example.wasmapplication.core.enums.NotificationsId
 import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.GeminiTextStreamUseCase
-import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.GeminiTextUseCase
-import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.GeminiTextWasmQueryFlowStreamUseCase
 import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.GeminiTextWasmQueryStreamUseCase
-import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.GeminiTextWasmQueryStreamUseCaseV2
 import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.GeminiTextWasmQueryUseCase
 import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.WasmQueryUseCase
 import com.example.wasmapplication.core.features.wasmSpeech.domain.use_case.WasmSecondQueryUseCase
-import com.example.wasmapplication.core.interfaces.IBaseCallbackListener
 import com.example.wasmapplication.core.interfaces.ICustomPlayerListener
-import com.example.wasmapplication.core.interfaces.IWasmServiceEventListener
 import dagger.hilt.android.AndroidEntryPoint
 import jakarta.inject.Inject
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import retrofit2.HttpException
-import kotlin.coroutines.resume
 
 @AndroidEntryPoint
 class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceEventListener {
@@ -67,8 +50,8 @@ class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceE
     @Inject lateinit var wasmSecondQueryUseCase: WasmSecondQueryUseCase
     @Inject lateinit var geminiTextStreamUseCase: GeminiTextStreamUseCase
     @Inject lateinit var geminiTextWasmQueryStreamUseCase: GeminiTextWasmQueryStreamUseCase
-    @Inject lateinit var geminiTextWasmQueryStreamUseCaseV2: GeminiTextWasmQueryStreamUseCaseV2
-    @Inject lateinit var geminiTextWasmQueryFlowStreamUseCase: GeminiTextWasmQueryFlowStreamUseCase
+//    @Inject lateinit var geminiTextWasmQueryStreamUseCaseV2: GeminiTextWasmQueryStreamUseCaseV2
+//    @Inject lateinit var geminiTextWasmQueryFlowStreamUseCase: GeminiTextWasmQueryFlowStreamUseCase
 
     //    @Inject lateinit var localNotification: LocalNotification
     //    @Inject lateinit var geminiTextUseCase: GeminiTextUseCase
@@ -193,129 +176,129 @@ class RecordVoiceService: Service(), ISpeechRecognizerCallBack{ // IWasmServiceE
     }
     private fun sendRequestToGeminiTextWasmSpeechFlowStream(result: String) {
 
-        if (TestConnection.isOnline(this, false)) {
-            try {
-                scope.launch(Dispatchers.IO+exceptionHandler) {
-                    val response = geminiTextWasmQueryFlowStreamUseCase(result)
-//                    response?.flowOn(Dispatchers.IO)
-                      response?.collect { it ->
-                        when (it) {
-                            is Resource.Loading -> {}
-                            is Resource.Success -> {
-
-                                if (it.data is ByteArray) {
-                                    playMedia(it.data)
-                                }
-                                else {
-                                    restartRecognizerAgain()
-                                }
-
-                            }
-                            is Resource.Error -> {
-                                Log.e("SpeechError", it.message?:"")
-//                                    withContext(Dispatchers.Main) {
-//                                        Toast.makeText(
-//                                            this@RecordVoiceService,
-//                                         "Error::${ it.message}",
-//                                            Toast.LENGTH_SHORT
-//                                        ).show()
-//                                    }
-                                restartRecognizerAgain()
-                            }
-                            is Resource.Complete -> {
-//                                    withContext(Dispatchers.Main) {
-//                                        Toast.makeText(
-//                                            this@RecordVoiceService,
-//                                            "is Complete",
-//                                            Toast.LENGTH_SHORT
-//                                        ).show()
-//                                    }
-                                restartRecognizerAgain()
-                            }
-                            is Resource.FinalError -> {
-                                withContext(Dispatchers.Main) {
-                                    Toast.makeText(
-                                        this@RecordVoiceService,
-                                        "Final Error:${it.message}",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }
-                                restartRecognizerAgain()
-                            }
-                        }
-                    }
-                }
-            } catch (e:Exception) {
-                scope?.launch(Dispatchers.Main) {
-                    restartRecognizerAgain()
-//                    speechRecognizerService.reStartListening()
-                }
-            }
-        } else {
-            // notifyNoInternetConnection()
-        }
+//        if (TestConnection.isOnline(this, false)) {
+//            try {
+//                scope.launch(Dispatchers.IO+exceptionHandler) {
+//                    val response = geminiTextWasmQueryFlowStreamUseCase(result)
+////                    response?.flowOn(Dispatchers.IO)
+//                      response?.collect { it ->
+//                        when (it) {
+//                            is Resource.Loading -> {}
+//                            is Resource.Success -> {
+//
+//                                if (it.data is ByteArray) {
+//                                    playMedia(it.data)
+//                                }
+//                                else {
+//                                    restartRecognizerAgain()
+//                                }
+//
+//                            }
+//                            is Resource.Error -> {
+//                                Log.e("SpeechError", it.message?:"")
+////                                    withContext(Dispatchers.Main) {
+////                                        Toast.makeText(
+////                                            this@RecordVoiceService,
+////                                         "Error::${ it.message}",
+////                                            Toast.LENGTH_SHORT
+////                                        ).show()
+////                                    }
+//                                restartRecognizerAgain()
+//                            }
+//                            is Resource.Complete -> {
+////                                    withContext(Dispatchers.Main) {
+////                                        Toast.makeText(
+////                                            this@RecordVoiceService,
+////                                            "is Complete",
+////                                            Toast.LENGTH_SHORT
+////                                        ).show()
+////                                    }
+//                                restartRecognizerAgain()
+//                            }
+//                            is Resource.FinalError -> {
+//                                withContext(Dispatchers.Main) {
+//                                    Toast.makeText(
+//                                        this@RecordVoiceService,
+//                                        "Final Error:${it.message}",
+//                                        Toast.LENGTH_SHORT
+//                                    ).show()
+//                                }
+//                                restartRecognizerAgain()
+//                            }
+//                        }
+//                    }
+//                }
+//            } catch (e:Exception) {
+//                scope?.launch(Dispatchers.Main) {
+//                    restartRecognizerAgain()
+////                    speechRecognizerService.reStartListening()
+//                }
+//            }
+//        } else {
+//            // notifyNoInternetConnection()
+//        }
     }
     private fun sendRequestToGeminiTextWasmSpeechStreamV2(result: String) {
 
-        if (TestConnection.isOnline(this, false)) {
-            try {
-                scope.launch(Dispatchers.IO+exceptionHandler) {
-                    val response = geminiTextWasmQueryStreamUseCaseV2(result)
-                    response?.collect { it ->
-                            when (it) {
-                                is Resource.Loading -> {}
-                                is Resource.Success -> {
-
-                                        if (it.data is ByteArray) {
-                                            playMedia(it.data)
-                                        }
-                                        else {
-                                            restartRecognizerAgainV2()
-                                        }
-
-                                }
-                                is Resource.Error -> {
-                                    Log.e("SpeechError", it.message?:"")
+//        if (TestConnection.isOnline(this, false)) {
+//            try {
+//                scope.launch(Dispatchers.IO+exceptionHandler) {
+//                    val response = geminiTextWasmQueryStreamUseCaseV2(result)
+//                    response?.collect { it ->
+//                            when (it) {
+//                                is Resource.Loading -> {}
+//                                is Resource.Success -> {
+//
+//                                        if (it.data is ByteArray) {
+//                                            playMedia(it.data)
+//                                        }
+//                                        else {
+//                                            restartRecognizerAgainV2()
+//                                        }
+//
+//                                }
+//                                is Resource.Error -> {
+//                                    Log.e("SpeechError", it.message?:"")
+////                                    withContext(Dispatchers.Main) {
+////                                        Toast.makeText(
+////                                            this@RecordVoiceService,
+////                                         "Error::${ it.message}",
+////                                            Toast.LENGTH_SHORT
+////                                        ).show()
+////                                    }
+//                                    restartRecognizerAgainV2()
+//                                }
+//                                is Resource.Complete -> {
+////                                    withContext(Dispatchers.Main) {
+////                                        Toast.makeText(
+////                                            this@RecordVoiceService,
+////                                            "is Complete",
+////                                            Toast.LENGTH_SHORT
+////                                        ).show()
+////                                    }
+//                                    restartRecognizerAgainV2()
+//                                }
+//                                is Resource.FinalError -> {
 //                                    withContext(Dispatchers.Main) {
 //                                        Toast.makeText(
 //                                            this@RecordVoiceService,
-//                                         "Error::${ it.message}",
+//                                            "Final Error:${it.message}",
 //                                            Toast.LENGTH_SHORT
 //                                        ).show()
 //                                    }
-                                    restartRecognizerAgainV2()
-                                }
-                                is Resource.Complete -> {
-//                                    withContext(Dispatchers.Main) {
-//                                        Toast.makeText(
-//                                            this@RecordVoiceService,
-//                                            "is Complete",
-//                                            Toast.LENGTH_SHORT
-//                                        ).show()
-//                                    }
-                                    restartRecognizerAgainV2()
-                                }
-                                is Resource.FinalError -> {
-                                    withContext(Dispatchers.Main) {
-                                        Toast.makeText(
-                                            this@RecordVoiceService,
-                                            "Final Error:${it.message}",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-                                    restartRecognizerAgainV2()
-                                }
-                            }
-                    }
-                }
-            } catch (e:Exception) {
-                scope?.launch {
-                    restartRecognizerAgainV2()
-                }
-            }
-        } else {
-           // notifyNoInternetConnection()
-        }
+//                                    restartRecognizerAgainV2()
+//                                }
+//                            }
+//                    }
+//                }
+//            } catch (e:Exception) {
+//                scope?.launch {
+//                    restartRecognizerAgainV2()
+//                }
+//            }
+//        } else {
+//           // notifyNoInternetConnection()
+//        }
     }
     private suspend fun restartRecognizerAgain(){
 
