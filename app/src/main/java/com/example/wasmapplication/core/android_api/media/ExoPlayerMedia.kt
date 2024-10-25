@@ -130,7 +130,7 @@ class ExoPlayerMedia (private val context: Context ,private val isStream: Boolea
         suspendCancellableCoroutine<Unit> { continuation ->
             if(listener==null){
                 listener=object : Player.Listener {
-                    @SuppressLint("UnsafeOptInUsageError")
+                    @SuppressLint("UnsafeOptInUsageError", "SuspiciousIndentation")
                     override fun onPlayerStateChanged(playWhenReady: Boolean, playbackState: Int) {
 
                         if (playbackState == Player.STATE_READY && player?.audioSessionId != null) {
@@ -490,6 +490,7 @@ class ExoPlayerMedia (private val context: Context ,private val isStream: Boolea
         }
     }
     fun isPlayer():Boolean {
+        if(player==null) return false
         return player?.isPlaying?:false
     }
     fun stop() {

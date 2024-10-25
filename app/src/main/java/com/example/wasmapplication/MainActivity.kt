@@ -1,20 +1,17 @@
 package com.example.wasmapplication
 
-import android.content.Intent
-import android.content.IntentFilter
+import android.annotation.SuppressLint
 import android.content.pm.PackageManager
-import android.net.ConnectivityManager
-import android.os.Build
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -28,52 +25,58 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.wasmapplication.broadcasts.NetworkChangeReceiver
+import com.example.wasmapplication.core.components.BottomNavigationBar
+import com.example.wasmapplication.features.home.presentation.HomeScreen
+import com.example.wasmapplication.features.settings.presentation.SettingViewModel
 import com.example.wasmapplication.features.wasmSpeech.presentation.RobotSpeechScreen
-import com.example.wasmapplication.services.RecordVoiceService
+import com.example.wasmapplication.features.wasmSpeech.presentation.SettingsScreen
 import com.example.wasmapplication.ui.theme.WasmApplicationTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+//    var result by rememberSaveable { mutableStateOf("placeholderResult") }
 
+
+    @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-
-
         enableEdgeToEdge()
         setContent {
-            WasmApplicationTheme {
-                Surface(color = MaterialTheme.colorScheme.background) {
-                    val navController = rememberNavController()
-                    NavHost(
-                        navController = navController,
-                        startDestination = Routes.RobotSpeechScreen.route
-                    ) {
-                        composable(
-                            route = Routes.RobotSpeechScreen.route
-                        ) {
-                            RequestPermissionsOnStart()
-                            RobotSpeechScreen(navController,this@MainActivity)
-                        }
-                    }
-//                Column(
-//                    modifier = Modifier.fillMaxSize(),
-//                    verticalArrangement = Arrangement.Center,
-//                    ) {
-//                    RobotSpeechScreen()
-//                }
-//                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-//                    Greeting(
-//                        name = "Android",
-//                        modifier = Modifier.padding(innerPadding)
-//                    )
-//                }
+
+            val themeViewModel: SettingViewModel = viewModel()
+            val isDarkTheme by themeViewModel.isDarkTheme
+
+
+           WasmApplicationTheme(isDarkTheme) {
+                 Surface(color = MaterialTheme.colorScheme.background) {
+                     val navController = rememberNavController()
+                     Scaffold(bottomBar = { BottomNavigationBar(navController) } // إضافة قائمة التنقل السفلية هنا
+                     ) { innerPadding ->
+                     NavHost(
+                         navController = navController,
+                         startDestination = Screens.HomeScreen.name,
+                         Modifier.padding(innerPadding)
+                     ) {
+
+                         composable(route = Screens.HomeScreen.name) {
+                             RequestPermissionsOnStart()
+                             HomeScreen(navController, this@MainActivity)
+                         }
+                         composable(route = Screens.RobotSpeechScreen.name) {
+                             RobotSpeechScreen(navController, this@MainActivity)
+                         }
+                         composable(route = Screens.SettingsScreen.name) {
+                             SettingsScreen(navController, this@MainActivity,themeViewModel)
+                         }
+                     }
+                 }
                 }
             }
         }
@@ -83,6 +86,8 @@ class MainActivity : ComponentActivity() {
         super.onStart()
 
     }
+
+
     @Composable
     fun RequestPermissions() {
         val context = LocalContext.current

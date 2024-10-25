@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">تطبيق لهجة</string>
+    <string name="btn_ok">حسناً</string>
+    <string name="home">الصفحة الرئيسية</string>
+    <string name="settings">الإعدادات</string>
+    <string name="robot_speech">كلام الروبوت</string>
+    <string name="night_mode">الوضع الليلي</string>
+    <string name="light_mode">الوضع الضوئي</string>
+
+    <string name="notify1_Automated_msg">ستعمل هذه الخدمة بشكل مستمر دون توقف، حتى عند إغلاق التطبيق.</string>
+    <!--=========================================================================-->
+    <string name="msg_stop_record_service">سيتم إيقاف خدمة الدردشة الآلية.</string>
+    <string name="msg_stop_automated_chat">يجب عليك إغلاق خدمة الدردشة الآلية قبل الانتقال إلى أي خدمة أخرى.</string>
+    <string name="msg_stop_session_chat">ستتوقف جلسة الدردشة الحالية بالكامل. هل توافق على ذلك؟</string>
+    <string name="msg_choose_the_chat">اختر الدردشة.</string>
+    <string name="msg_mute_microphone_alarm_tone">سيتم تحويل صوت الجهاز إلى وضع الاهتزاز لتجنب أصوات الإشعارات القادمة من الميكروفون. هل توافق على ذلك؟ يجب أن توافق للبدء في الخدمة.</string>
+    <string name="msg_choose_the_language">اختر اللغة.</string>
+    <string name="msg_failed_the_session_create">فشل في إرسال الطلب.</string>
+    <string name="msg_close_app">هل ترغب في إغلاق التطبيق؟</string>
+    <string name="msg_no_internet">!! لا يوجد اتصال بالإنترنت</string>
+    <string name="msg_no_internet_ar">لا يوجد اتصال بالإنترنت !!</string>
+    <string name="retry_button">إعادة محاولة الاتصال</string>
+
+    <!--========================[EditText Message Errors]==========================-->
+    <string name="input_is_empty">لا يمكن ترك هذا الحقل فارغًا.</string>
+
+    <string-array name="language_names">
+        <item>العربية</item>
+        <item>الإنجليزية</item>
+        <item>الإسبانية</item>
+        <item>الفرنسية</item>
+    </string-array>
+
+
+
+</resources>

@@ -27,6 +27,9 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        defaultConfig {
+            resConfigs("en", "ar")
+        }
 
 //        val localProperties =  Properties()
 //        val localPropertiesFile = rootProject.file("local.properties")
@@ -49,6 +52,9 @@ android {
                 "proguard-rules.pro"
             )
         }
+        debug {
+            isPseudoLocalesEnabled = true
+        }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -68,6 +74,13 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+    sourceSets {
+        getByName("main") {
+            res {
+                srcDirs("src\\main\\res", "src\\main\\res\\values-ar")
+            }
+        }
+    }
 
 
 }
@@ -77,14 +90,21 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.navigation.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
-    implementation(libs.androidx.material3)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.datastore.preferences)
+    //Material Icons
+    implementation(libs.androidx.compose.material.icons.core)
+    implementation(libs.androidx.compose.material.icons.extended)
+
     implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.play.services.vision.common)
     implementation(libs.androidx.lifecycle.service)
+//    implementation(libs.androidx.datastore.core.android)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

@@ -6,16 +6,27 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.IBinder
 import android.util.Log
 import android.widget.Toast
+import androidx.annotation.OptIn
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import androidx.media3.common.AudioAttributes
+import androidx.media3.common.C
+import androidx.media3.common.MediaItem
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.datasource.ByteArrayDataSource
+import androidx.media3.datasource.DataSource
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import com.example.wasm.core.android_api.media.ExoPlayerMedia
 import com.example.wasmapplication.MainActivity
 import com.example.wasmapplication.R
@@ -42,7 +53,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.cancellable
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Semaphore
@@ -68,7 +81,9 @@ class RecordVoiceLifeCycleService: LifecycleService(), ISpeechRecognizerCallBack
 
     private lateinit var  speechRecognizerService: SpeechRecognizerService;
     private lateinit var exoPlayerMedia : ExoPlayerMedia;
-//    private lateinit var job : Job;
+    private  val simaphore :Semaphore= Semaphore(1);
+    private  var startRecognizerSpeechListener :Boolean= false;
+    private lateinit var job : Job;
     private val exceptionHandler = CoroutineExceptionHandler  { _, throwable ->  suspend {
       ///TODO  restartRecognizerAgain()
 
@@ -110,69 +125,76 @@ class RecordVoiceLifeCycleService: LifecycleService(), ISpeechRecognizerCallBack
         return START_STICKY
     }
     override fun onSpeechRecognizerResult(result:String?){
-            sendRequestToGeminiTextWasmSpeechStream(result)
+
+        sendRequestToGeminiTextWasmSpeechStream(result)
     }
     private fun sendRequestToGeminiTextWasmSpeechStream(result: String?) {
 
         if (TestConnection.isOnline(this, false)) {
-            lifecycleScope.launch(Dispatchers.IO+exceptionHandler) {
+          lifecycleScope.launch(Dispatchers.IO+exceptionHandler) {
+
+              simaphore.withPermit {startRecognizerSpeechListener=false}
+
                 try {
-                        if(result?.isNullOrBlank()==false){
+                        if(result?.isNullOrBlank()==false ){
+
                             val response = geminiTextWasmQueryStreamUseCase(result)
-                            response?.collect { it ->
-                                when (it) {
-                                    is Resource.Loading -> {
-                                        if (it.message?.isNullOrBlank() == false) {
+                            response?.cancellable()
+                            ?.collect { it ->
+                                    when (it) {
+                                        is Resource.Loading -> {
+                                            if (it.message?.isNullOrBlank() == false) {
+                                                withContext(Dispatchers.Main) {
+                                                    Toast.makeText(
+                                                        this@RecordVoiceLifeCycleService,
+                                                        "${it.message}",
+                                                        Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                            }
+                                        }
+                                        is Resource.Success -> {
+                                            if (it.data is ByteArray && it.data.isNotEmpty()) {
+                                                playMedia(it.data)
+                                            }
+                                        }
+                                        is Resource.Error -> {
                                             withContext(Dispatchers.Main) {
                                                 Toast.makeText(
                                                     this@RecordVoiceLifeCycleService,
-                                                    "${it.message}",
+                                                    "Error::${it.message}",
                                                     Toast.LENGTH_SHORT
                                                 ).show()
                                             }
+//                                            restartRecognizerAgain()
+//                                            return@collect
                                         }
-                                    }
+                                        is Resource.Complete -> {
+                                                        withContext(Dispatchers.Main) {
+                                                            Toast.makeText(
+                                                                this@RecordVoiceLifeCycleService,
+                                                                "is Complete",
+                                                                Toast.LENGTH_SHORT
+                                                            ).show()
 
-                                    is Resource.Success -> {
-                                        if (it.data is ByteArray && it.data.isNotEmpty()) {
-                                            playMedia(it.data)
+                                                        }
+                                            restartRecognizerAgain()
+                                            return@collect
                                         }
-                                    }
-
-                                    is Resource.Error -> {
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(
-                                                this@RecordVoiceLifeCycleService,
-                                                "Error::${it.message}",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
+                                        is Resource.FinalError -> {
+                                            withContext(Dispatchers.Main) {
+                                                Toast.makeText(
+                                                    this@RecordVoiceLifeCycleService,
+                                                    "Final Error:${it.message}",
+                                                    Toast.LENGTH_SHORT
+                                                ).show()
+                                            }
+                                            restartRecognizerAgain()
+                                            return@collect
                                         }
-                                        restartRecognizerAgain()
-                                    }
-
-                                    is Resource.Complete -> {
-        //                                    withContext(Dispatchers.Main) {
-        //                                        Toast.makeText(
-        //                                            this@RecordVoiceService,
-        //                                            "is Complete",
-        //                                            Toast.LENGTH_SHORT
-        //                                        ).show()
-        //                                    }
-                                        restartRecognizerAgain()
-                                    }
-
-                                    is Resource.FinalError -> {
-                                        withContext(Dispatchers.Main) {
-                                            Toast.makeText(
-                                                this@RecordVoiceLifeCycleService,
-                                                "Final Error:${it.message}",
-                                                Toast.LENGTH_SHORT
-                                            ).show()
-                                        }
-                                        restartRecognizerAgain()
                                     }
                                 }
-                            }
+//                            }
                         }else{
                             restartRecognizerAgain()
                         }
@@ -184,25 +206,80 @@ class RecordVoiceLifeCycleService: LifecycleService(), ISpeechRecognizerCallBack
            // notifyNoInternetConnection()
         }
     }
+
+
+
     private suspend fun restartRecognizerAgain(){
         withContext(Dispatchers.Main) {
-            speechRecognizerService.reStartListening()
+            simaphore.withPermit {
+                        if(!startRecognizerSpeechListener){
+                            startRecognizerSpeechListener=true
+                            Toast.makeText(
+                                this@RecordVoiceLifeCycleService,
+                                "reStartListening",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            speechRecognizerService?.reStartListening()
+                        }
+                    }
         }
     }
+
+    @OptIn(UnstableApi::class)
     private suspend fun playMedia(data:ByteArray){
         withContext(Dispatchers.Main) {
             try {
 
                  exoPlayerMedia?.playerMediaStreamAndWait(data)
+
 //                    exoPlayerMedia?.playMediaByteStream(data)
 
-//                    if (exoPlayerMedia?.isPlayer() == false) {
-//                        delay(500)
-//                    }
-//                 dueration=exoPlayerMedia?.getRemainingDuration()?:0;//exoPlayerMedia?.player?.duration?:500;
-//                 delay(dueration)
-//                    while (exoPlayerMedia?.isPlayer() == true)
-//                        delay(500)
+//                    val audioAttributes = AudioAttributes.Builder()
+//                        .setContentType(C.AUDIO_CONTENT_TYPE_SPEECH)
+//                        .setUsage(C.USAGE_MEDIA)
+//                        .build()
+//
+//                val context=this@RecordVoiceLifeCycleService
+//                val defaultRenderersFactory = DefaultRenderersFactory(this@RecordVoiceLifeCycleService).setEnableAudioTrackPlaybackParams(true)
+//
+//                val  player =  ExoPlayer.Builder(context,defaultRenderersFactory)
+//                    .setMediaSourceFactory(DefaultMediaSourceFactory(context).setLiveTargetOffsetMs(5000)).build()
+//                val  mediaItem = MediaItem.Builder()
+//                    .setUri( Uri.EMPTY)
+//                    .setLiveConfiguration(
+//                        MediaItem.LiveConfiguration.Builder().setMaxPlaybackSpeed(1.02f).build()
+//                    ).build()
+//
+//                player?.volume = 1.0f
+//                player?.setAudioAttributes(audioAttributes,true)
+//                val byteArrayDataSource = ByteArrayDataSource(data)
+//                val dataSourceFactory = DataSource.Factory { byteArrayDataSource }
+//                val mediaSource = ProgressiveMediaSource.Factory(dataSourceFactory)
+//                    .createMediaSource(mediaItem)
+//                player?.let {
+//                    it.setMediaSource(mediaSource)
+//                }
+//                player?.prepare()
+//                player?.play()
+//
+//                if (player?.isPlaying== false) {
+//                    delay(500)
+//                }
+//                while (player?.isPlaying == true)
+//                    delay(500)
+//
+//                player?.release()
+
+//                Toast.makeText(
+//                    this@RecordVoiceLifeCycleService,
+//                    "exoPlayerMedia is ",
+//                    Toast.LENGTH_SHORT
+//                ).show()
+
+//               var  dueration=exoPlayerMedia?.getRemainingDuration()?:0;//exoPlayerMedia?.player?.duration?:500;
+//                if(dueration>0)
+//                    delay(dueration)
+
 
             }catch (e:Exception){
                 e.printStackTrace()
@@ -266,7 +343,7 @@ class RecordVoiceLifeCycleService: LifecycleService(), ISpeechRecognizerCallBack
     override fun onDestroy() {
         super.onDestroy()
         try {
-//            job?.let { if(it.isActive) it.cancel() }
+            job?.let { if(it.isActive) it.cancel() }
             exoPlayerMedia?.let { it.release() }
             exceptionHandler?.let { it.cancel() }
         }finally {

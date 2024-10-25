@@ -3,6 +3,7 @@ package com.example.wasmapplication.core.features.wasmSpeech.data.repository
 import com.example.wasmapplication.core.features.wasmSpeech.data.remote.GeminiApiClient
 import com.example.wasmapplication.core.features.wasmSpeech.domain.repository.GeminiAiRepository
 import com.example.wasmapplication.core.interfaces.ICallbackTask
+import com.example.wasmapplication.core.interfaces.IListenerStream
 import com.example.wasmapplication.core.safeExecuteCallbackTask
 import com.google.ai.client.generativeai.type.GenerateContentResponse
 import kotlinx.coroutines.flow.Flow
@@ -28,6 +29,14 @@ class GeminiAiRepositoryImpl @Inject constructor(
     override suspend fun sendMessageStream(text: String): Flow<String>?  {
                return api.sendMessageStream(text);
     }
+
+    override suspend fun sendListenerMessageStream(
+        text: String,
+        callBack: IListenerStream<String>
+    ) : Flow<String>?{
+        return api.sendListenerMessageStream(text,callBack);
+    }
+
     override suspend fun sendMessageFlowStream(text: String): Flow<GenerateContentResponse>?   {
                return api.sendMessageFlowStream(text);
     }

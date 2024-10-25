@@ -9,6 +9,8 @@ public class ExternalStorage {
 
     private  static String storageName="LocalStorage";
 
+
+
     public  static String   getDefaultStorageName()
     {
         return storageName;

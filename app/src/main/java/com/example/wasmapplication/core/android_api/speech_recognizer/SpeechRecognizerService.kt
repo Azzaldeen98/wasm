@@ -14,6 +14,7 @@ import com.example.wasmapplication.core.error.ServerException
 import com.example.wasmapplication.core.local_storage.LanguageInfo
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.HiltAndroidApp
+import kotlinx.coroutines.sync.Semaphore
 import javax.inject.Inject
 
 interface OnErrorListener {
@@ -59,6 +60,7 @@ interface ISpeechRecognizerService{
     private lateinit var textSpeachResult: String
     private var speechRecognizerIntent: Intent?=null
     private var speechRecognizer: SpeechRecognizer?=null
+//    private val semaphore:Semaphore=Semaphore(1)
 
     init {
 
@@ -94,8 +96,7 @@ interface ISpeechRecognizerService{
 
         } catch (e: Exception) {
             Log.e("SpeechRecognizerServiceError",e.message.toString())
-            Toast.makeText(context, "SpeechRecognizer:" + e.message.toString(), Toast.LENGTH_SHORT)
-                .show()
+            Toast.makeText(context, "SpeechRecognizer:" + e.message.toString(),Toast.LENGTH_SHORT).show()
         }
 
 
@@ -133,7 +134,7 @@ interface ISpeechRecognizerService{
 
         }
         override fun onRmsChanged(v: Float) {
-//            Log.d("onRmsChanged", v.toString())
+                //   Log.d("onRmsChanged", v.toString())
         }
         override fun onBufferReceived(bytes: ByteArray) {
         }
@@ -214,12 +215,14 @@ interface ISpeechRecognizerService{
         workingInTheContinuously=_workingInTheContinuously
     }
       fun speechRecognizerListenAgain() {
-              try{
 
-                  if(speechRecognizer!=null){
-                      speechRecognizerIsListening=false
+
+              try {
+
+                  if (speechRecognizer != null) {
+                      speechRecognizerIsListening = false
                       speechRecognizer?.cancel();
-                  }else{
+                  } else {
                       initialization()
                   }
 
@@ -227,19 +230,21 @@ interface ISpeechRecognizerService{
                   startSpeechRecognizerListening();
               }
     }
+    @SuppressLint("SuspiciousIndentation")
     private fun startSpeechRecognizerListening() {
         ////TODO
         if (!SpeechRecognizer.isRecognitionAvailable(context)){
             Toast.makeText(context, "Speech recognition is not available", Toast.LENGTH_SHORT).show();
 //            throw RecognitionAvailableException();
         }else {
-            if (speechRecognizer != null && speechRecognizerIntent != null) {
+            if (speechRecognizer != null && speechRecognizerIntent != null && speechRecognizerIsListening == false) {
                 val lang = LanguageInfo("ar", 0) // LanguageInfo.getStorageSelcetedLanguage(context)
 //            if(lang!=null && speechRecognizerIntent?.getStringExtra(RecognizerIntent.EXTRA_LANGUAGE)?.lowercase()!=lang.code?.lowercase())
                 if (lang != null && speechRecognizerIntent?.getStringExtra(RecognizerIntent.EXTRA_LANGUAGE)
                         ?.equals(lang?.code) == false
                 )
-                    speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang.code);
+
+                speechRecognizerIntent?.putExtra(RecognizerIntent.EXTRA_LANGUAGE, lang.code);
                 speechRecognizer?.startListening(speechRecognizerIntent!!)
                 speechRecognizerIsListening = true
             }
@@ -252,12 +257,14 @@ interface ISpeechRecognizerService{
             Toast.makeText(context, "Speech recognition is not available", Toast.LENGTH_SHORT).show();
 //            throw RecognitionAvailableException();
         }else {
-            if (speechRecognizer != null && speechRecognizerIntent != null && speechRecognizerIsListening == false) {
-                speechRecognizer?.startListening(speechRecognizerIntent!!)
-                speechRecognizerIsListening = true
-            } else {
-                speechRecognizerListenAgain()
-            }
+
+                     speechRecognizerListenAgain()
+//            if (speechRecognizer != null && speechRecognizerIntent != null && speechRecognizerIsListening == false) {
+//                speechRecognizer?.startListening(speechRecognizerIntent!!)
+//                speechRecognizerIsListening = true
+//            } else {
+//                speechRecognizerListenAgain()
+//            }
         }
     }
     fun setOnErrorListener(listener: OnErrorListener){

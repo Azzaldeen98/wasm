@@ -5,14 +5,18 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -21,9 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.wasmapplication.core.constant.STORAGE_RECORD_SERVICE_STATE
 import com.example.wasmapplication.core.helpers.ManageService
-import com.example.wasmapplication.core.local_storage.ExternalStorage
 import com.example.wasmapplication.core.components.BasicButton
 import com.example.wasmapplication.services.RecordVoiceLifeCycleService
 import com.example.wasmapplication.services.RecordVoiceService
@@ -74,7 +76,12 @@ fun ShowDialog() {
         )
     }
 }
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ScaffoldExample() {
 
+}
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RobotSpeechScreen(
     navController: NavController,
@@ -84,61 +91,92 @@ fun RobotSpeechScreen(
 
 ) {
     var serviceClass: Class<*> = RecordVoiceLifeCycleService::class.java;
+//    var serviceClass: Class<*> = RecordVoiceService::class.java;
     var result by rememberSaveable { mutableStateOf("placeholderResult") }
     val uiState by wasmSpeechViewModel.uiState.collectAsState();
     var text by remember { mutableStateOf(
         if(ManageService.checkForegroundServiceIsRunning(context, serviceClass))"Stop Service" else "Start Service") }
 //    val state = viewModel.state.value
+
+    var presses by remember { mutableIntStateOf(0) }
     Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-
-        ) {
-        Spacer(Modifier.height(0.dp))
-
-
+        modifier = Modifier.padding().fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,) {
+            Spacer(Modifier.height(0.dp))
             BasicButton(
 
                 onClick = {
-                          if(!ManageService.checkForegroundServiceIsRunning(context,serviceClass)){
-                               ManageService.startService(context,serviceClass)
-                               text="Stop Service"
-                          }else{
-                              text="Start Service"
-                              ManageService.stopService(context,serviceClass)
+                    if(!ManageService.checkForegroundServiceIsRunning(context,serviceClass)){
+                        ManageService.startService(context,serviceClass)
+                        text="Stop Service"
+                    }else{
+                        text="Start Service"
+                        ManageService.stopService(context,serviceClass)
 
-                            }
-                      },
+                    }
+                },
                 text = text
             )
 
 
 
 
-//        if (uiState is UiState.Loading) {
-//            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
-//        } else {
-//            var textColor = MaterialTheme.colorScheme.onSurface
-//            if (uiState is UiState.Error) {
-//                textColor = MaterialTheme.colorScheme.error
-//                result = (uiState as UiState.Error).errorMessage
-//            } else if (uiState is UiState.Success) {
-//                textColor = MaterialTheme.colorScheme.onSurface
-//                result = (uiState as UiState.Success).outputText
-//            }
-//            val scrollState = rememberScrollState()
-//            Text(
-//                text = result,
-//                textAlign = TextAlign.Center,
-//                color = textColor,
-//                modifier = Modifier
-//                    .align(Alignment.CenterHorizontally)
-//                    .padding(16.dp)
-//                    .fillMaxSize()
-//                    .verticalScroll(scrollState)
-//            )
-//        }
+            //        if (uiState is UiState.Loading) {
+            //            CircularProgressIndicator(modifier = Modifier.align(Alignment.CenterHorizontally))
+            //        } else {
+            //            var textColor = MaterialTheme.colorScheme.onSurface
+            //            if (uiState is UiState.Error) {
+            //                textColor = MaterialTheme.colorScheme.error
+            //                result = (uiState as UiState.Error).errorMessage
+            //            } else if (uiState is UiState.Success) {
+            //                textColor = MaterialTheme.colorScheme.onSurface
+            //                result = (uiState as UiState.Success).outputText
+            //            }
+            //            val scrollState = rememberScrollState()
+            //            Text(
+            //                text = result,
+            //                textAlign = TextAlign.Center,
+            //                color = textColor,
+            //                modifier = Modifier
+            //                    .align(Alignment.CenterHorizontally)
+            //                    .padding(16.dp)
+            //                    .fillMaxSize()
+            //                    .verticalScroll(scrollState)
+            //            )
+            //        }
+        }
     }
+//    Scaffold(
+//        modifier = Modifier.fillMaxWidth(),
+//        topBar = {
+//            TopAppBar(
+//                colors = topAppBarColors(
+//                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+//                    titleContentColor = MaterialTheme.colorScheme.primary,
+//                ),
+//                title = {
+//                    Text("Top app bar")
+//                }
+//            )
+//        },
+//        bottomBar = {
+//            BottomAppBar(containerColor = MaterialTheme.colorScheme.primaryContainer,
+//                contentColor = MaterialTheme.colorScheme.primary){
+//                NavigationPage(context)
+//            }
+//        },
+//        floatingActionButton = {
+//            FloatingActionButton(onClick = { presses++ }) {
+//                Icon(Icons.Default.Add, contentDescription = "Add")
+//            }
+//        }
+//    ) { innerPadding ->
+//
+//    }
+
 //    Box(modifier = Modifier.fillMaxSize()) {
 //
 //        val data= "Data" //if(state.data is String) state.data  else "None"

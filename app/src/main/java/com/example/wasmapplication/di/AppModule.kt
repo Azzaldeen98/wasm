@@ -4,6 +4,7 @@ import android.content.Context
 import android.util.Log
 import com.example.wasmapplication.R
 import com.example.wasmapplication.core.Notifications.LocalNotification
+import com.example.wasmapplication.core.constant.AppBuildConfig
 import com.example.wasmapplication.core.constant.Constants
 import com.example.wasmapplication.core.features.wasmSpeech.data.remote.GeminiApiClient
 import com.example.wasmapplication.core.features.wasmSpeech.data.remote.IWasmApiServices
@@ -13,6 +14,8 @@ import com.example.wasmapplication.core.features.wasmSpeech.data.repository.Gemi
 import com.example.wasmapplication.core.features.wasmSpeech.data.repository.WasmTextToSpeechRepositoryImpl
 import com.example.wasmapplication.core.features.wasmSpeech.domain.repository.GeminiAiRepository
 import com.example.wasmapplication.core.features.wasmSpeech.domain.repository.WasmTextToSpeechRepository
+import com.example.wasmapplication.core.local.LanguageControls
+import com.google.ai.client.generativeai.BuildConfig
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -51,8 +54,9 @@ object AppModule {
     @Singleton
     fun provideWasmSpeechHttpURLConnection(@ApplicationContext context: Context): HttpURLConnection {
         val apiUrl="${Constants.WASM_BASE_URL}vits-ar-sa-huba-v2" //vits-ar-sa-A"
-        val authorization =context.getString(R.string.WASM_API_KEY) // "Bearer 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";
+        val authorization = AppBuildConfig.WASM_API_KEY // "Bearer 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";
         Log.d("apiUrl",apiUrl)
+
         val url = URL(apiUrl)
         val conn = url.openConnection() as HttpURLConnection
         conn.requestMethod = "POST"
@@ -75,7 +79,7 @@ object AppModule {
     @Provides
     @Singleton
     fun provideGeminiApiClient(@ApplicationContext context: Context): GeminiApiClient {
-        return GeminiApiClient(context.getString(R.string.GEMINI_API_KEY))
+        return GeminiApiClient(AppBuildConfig.GEMINI_API_KEY)
     }
 
     @Provides
@@ -83,6 +87,13 @@ object AppModule {
     fun provideGeminiApiRepository(api: GeminiApiClient)
     : GeminiAiRepository {
         return GeminiAiRepositoryImpl(api)
+    }
+
+    @Provides
+    @Singleton
+    fun provideLanguageControls(@ApplicationContext context: Context)
+    : LanguageControls {
+        return LanguageControls.getInstance(context)
     }
 
     @Provides
