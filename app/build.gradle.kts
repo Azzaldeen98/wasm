@@ -35,17 +35,22 @@ android {
         }
 
 
-//        val localProperties =  Properties()
-//        val localPropertiesFile = rootProject.file("local.properties")
-//        if (localPropertiesFile.exists()) {
-//            localProperties.load(FileInputStream(localPropertiesFile))
-//        }
-//
-//        // قراءة المفتاح WASM_API_KEY
-//        val wasmApsApiKey = localProperties.getProperty("WASM_API_KEY")
-//        if (wasmApsApiKey != null) {
-//            buildConfigField("String", "WASM_API_KEY", "\"${wasmApsApiKey}\"")
-//        }
+        val localProperties =  Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localProperties.load(FileInputStream(localPropertiesFile))
+        }
+
+        // قراءة المفتاح WASM_API_KEY
+        val wasmApsApiKey = localProperties.getProperty("WASM_API_KEY")
+        if (wasmApsApiKey != null) {
+            buildConfigField("String", "WASM_API_KEY", "\"${wasmApsApiKey}\"")
+        }
+
+        val geminiApsApiKey = localProperties.getProperty("GEMINI_API_KEY")
+        if (geminiApsApiKey != null) {
+            buildConfigField("String", "GEMINI_API_KEY", "\"${geminiApsApiKey}\"")
+        }
     }
 
     buildTypes {

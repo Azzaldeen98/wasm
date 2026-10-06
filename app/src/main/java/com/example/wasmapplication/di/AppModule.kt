@@ -27,7 +27,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import javax.inject.Named
 import javax.inject.Singleton
-
+import com.example.wasm.BuildConfig
 //@Module
 //@InstallIn(ServiceComponent::class)
 //object ServiceModule {
@@ -79,7 +79,8 @@ object AppModule {
     @Provides
     @Singleton
     fun provideGeminiApiClient(@ApplicationContext context: Context): GeminiApiClient {
-        return GeminiApiClient(AppBuildConfig.GEMINI_API_KEY)
+//        private val apiKey: String = BuildConfig.GEMINI_API_KEY
+        return GeminiApiClient(BuildConfig.GEMINI_API_KEY)
     }
 
     @Provides
